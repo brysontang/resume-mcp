@@ -1,0 +1,113 @@
+{
+  "tools": [
+    {
+      "name": "get_profile",
+      "description": "Get basic profile information including name, tagline, links, and contact info. Always available.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "access": "free"
+    },
+    {
+      "name": "get_projects",
+      "description": "Get list of projects, optionally filtered by tag. Always available.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "tag": {
+            "type": "string",
+            "description": "Optional tag to filter projects by (e.g., 'typescript', 'ai')"
+          },
+          "featured_only": {
+            "type": "boolean",
+            "description": "If true, only return featured projects"
+          }
+        },
+        "required": []
+      },
+      "access": "free"
+    },
+    {
+      "name": "get_writing",
+      "description": "Get list of articles, blog posts, and other writing. Always available.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Optional platform filter (e.g., 'personal', 'dev.to')"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of posts to return"
+          }
+        },
+        "required": []
+      },
+      "access": "free"
+    },
+    {
+      "name": "get_experience",
+      "description": "Get work experience history. Requires guestbook entry or Agent Token.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "current_only": {
+            "type": "boolean",
+            "description": "If true, only return current position(s)"
+          }
+        },
+        "required": []
+      },
+      "access": "gated"
+    },
+    {
+      "name": "get_skills",
+      "description": "Get technical skills organized by category. Requires guestbook entry or Agent Token.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Optional category filter: 'languages', 'frameworks', 'infrastructure', 'domains'"
+          }
+        },
+        "required": []
+      },
+      "access": "gated"
+    },
+    {
+      "name": "leave_message",
+      "description": "Leave a message in the guestbook. Unlocks access to gated tools for this session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Your name or identifier"
+          },
+          "message": {
+            "type": "string",
+            "description": "Your message or reason for visiting"
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "Optional agent identifier for tracking"
+          },
+          "contact": {
+            "type": "string",
+            "description": "Optional contact info if you'd like a response"
+          }
+        },
+        "required": ["name", "message"]
+      },
+      "access": "free"
+    }
+  ],
+  "access_levels": {
+    "free": "Available to all agents without authentication",
+    "gated": "Requires leave_message() call or valid Agent-Token header"
+  }
+}

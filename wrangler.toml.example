@@ -1,0 +1,19 @@
+# Copy this to wrangler.toml and fill in your values
+name = "resume-mcp"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Your custom domain (optional)
+# routes = [
+#   { pattern = "mcp.yourdomain.dev", custom_domain = true }
+# ]
+
+# KV namespace for guestbook storage
+# Create with: wrangler kv:namespace create "GUESTBOOK"
+# [[kv_namespaces]]
+# binding = "GUESTBOOK"
+# id = "your-kv-namespace-id"
+
+# Environment variables (optional)
+# [vars]
+# CORS_ORIGIN = "https://yourdomain.dev"

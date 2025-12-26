@@ -1,0 +1,92 @@
+{
+  "profile": {
+    "name": "Your Name",
+    "tagline": "What you do in one line",
+    "bio": "A longer description of who you are and what you're passionate about.",
+    "location": "City, Country",
+    "links": {
+      "website": "https://yoursite.dev",
+      "github": "https://github.com/yourusername",
+      "linkedin": "https://linkedin.com/in/yourusername",
+      "twitter": "https://twitter.com/yourusername"
+    },
+    "contact": {
+      "email": "hello@yoursite.dev",
+      "preferred": "email"
+    }
+  },
+  "projects": [
+    {
+      "name": "Project Name",
+      "description": "What this project does and why it matters.",
+      "tags": ["typescript", "cloudflare", "ai"],
+      "links": {
+        "demo": "https://project.yoursite.dev",
+        "github": "https://github.com/yourusername/project"
+      },
+      "featured": true
+    },
+    {
+      "name": "Another Project",
+      "description": "Description of your second project.",
+      "tags": ["react", "node", "postgres"],
+      "links": {
+        "github": "https://github.com/yourusername/another-project"
+      },
+      "featured": false
+    }
+  ],
+  "writing": [
+    {
+      "title": "Article Title",
+      "url": "https://blog.yoursite.dev/article",
+      "date": "2024-12-01",
+      "platform": "personal",
+      "description": "Brief description of what this article covers."
+    },
+    {
+      "title": "External Post",
+      "url": "https://dev.to/yourusername/post",
+      "date": "2024-11-15",
+      "platform": "dev.to",
+      "description": "Description of the external post."
+    }
+  ],
+  "experience": [
+    {
+      "role": "Senior Software Engineer",
+      "company": "Company Name",
+      "dates": {
+        "start": "2022-01",
+        "end": null
+      },
+      "current": true,
+      "description": "What you do here and key accomplishments.",
+      "highlights": [
+        "Led development of key feature",
+        "Improved system performance by X%"
+      ]
+    },
+    {
+      "role": "Software Engineer",
+      "company": "Previous Company",
+      "dates": {
+        "start": "2020-06",
+        "end": "2021-12"
+      },
+      "current": false,
+      "description": "Description of your role and impact.",
+      "highlights": [
+        "Built and shipped major product",
+        "Mentored junior developers"
+      ]
+    }
+  ],
+  "skills": {
+    "languages": ["TypeScript", "Python", "Go", "Rust"],
+    "frameworks": ["React", "Next.js", "Node.js", "FastAPI"],
+    "infrastructure": ["AWS", "Cloudflare", "Docker", "Kubernetes"],
+    "domains": ["Distributed Systems", "AI/ML", "Developer Tools"],
+    "currently_learning": ["Rust", "WebAssembly"]
+  }
+}
