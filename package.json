@@ -1,7 +1,7 @@
 {
   "name": "resume-mcp",
   "version": "1.0.0",
-  "description": "Your identity as an API endpoint - MCP server for AI agents to query your professional profile",
+  "description": "MCP server exposing professional identity as queryable API for AI agents. Your resume as an endpoint.",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -10,11 +10,21 @@
   },
   "keywords": [
     "mcp",
-    "resume",
-    "portfolio",
-    "cloudflare-workers",
-    "ai-agents"
+    "model-context-protocol",
+    "ai-agent",
+    "resume-api",
+    "professional-identity",
+    "agent-tokens",
+    "cloudflare-workers"
   ],
+  "homepage": "https://mcp.brysontang.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brysontang/resume-mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/brysontang/resume-mcp/issues"
+  },
   "author": "Bryson Tang",
   "license": "MIT",
   "dependencies": {

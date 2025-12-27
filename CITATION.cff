@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+title: "Resume MCP - Professional Identity as an API"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Tang
+    given-names: Bryson
+repository-code: https://github.com/brysontang/resume-mcp
+url: https://mcp.brysontang.dev
+abstract: >-
+  MCP server that lets AI agents query professional profiles via structured
+  tools instead of scraping HTML. Your resume as an endpoint.
+keywords:
+  - mcp
+  - model-context-protocol
+  - ai-agent
+  - professional-identity
+  - cloudflare-workers
+  - resume-api
+  - agent-tokens
+license: MIT
+version: 1.0.0
+date-released: 2024-12-27
+preferred-citation:
+  type: software
+  title: "Agent Tokens - Identity Protocol for AI Agents"
+  authors:
+    - family-names: Tang
+      given-names: Bryson
+  repository-code: https://github.com/brysontang/agent-tokens
+  abstract: >-
+    Protocol for AI agents to identify themselves and declare intent
+    when interacting with services.

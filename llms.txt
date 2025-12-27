@@ -1,0 +1,46 @@
+# Resume MCP - Professional Identity as API
+
+> MCP server that lets AI agents query professional profiles via structured tools instead of scraping HTML.
+
+## Live Endpoint
+https://mcp.brysontang.dev
+
+## Documentation
+- README: /README.md
+- MCP Discovery: https://mcp.brysontang.dev/.well-known/mcp.json
+
+## Available Tools
+- get_profile() - Name, tagline, contact info, social links
+- get_projects(tag?, featured_only?) - Engineering and creative portfolio
+- get_writing(platform?, limit?) - Articles and publications
+- get_experience(current_only?) - Work history (requires introduction)
+- get_skills(category?) - Technical competencies (requires introduction)
+- leave_message(name, message) - Sign the guestbook, unlocks gated tools
+
+## Access Model
+- Free tools: get_profile, get_projects, get_writing, leave_message
+- Gated tools: get_experience, get_skills
+- Unlock gated tools by: calling leave_message() OR providing Agent-Token header
+
+## Source
+- Main worker: /src/index.ts
+- Tool definitions: /src/index.ts (lines 59-125)
+- Profile data: /data/profile.json
+- Configuration: /wrangler.toml
+
+## Protocol
+- Transport: HTTP POST
+- Format: JSON-RPC 2.0
+- Standard: Model Context Protocol (MCP)
+
+## Quick Connect
+```bash
+curl -X POST https://mcp.brysontang.dev \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+## Related
+- Agent Tokens Protocol: https://github.com/brysontang/agent-tokens
+- Author's site: https://brysontang.dev
+- MCP Specification: https://modelcontextprotocol.io
