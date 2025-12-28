@@ -95,6 +95,13 @@
       "description": "On measuring AI capabilities through calibration rather than benchmarks."
     },
     {
+      "title": "Your Prompt's Favorite Prompt",
+      "url": "https://medium.com/@brysontang/your-prompts-favorite-prompt-fae76a0b0eb0",
+      "date": "2025-11-28",
+      "platform": "Medium",
+      "description": "LLMs are a megaphone, not a magic wand. Meta-prompting techniques."
+    },
+    {
       "title": "The Bitter Lesson 2.0: Reasoning Without Worlds",
       "url": "https://noise2signal.bearblog.dev/the-bitter-lesson-20-reasoning-without-worlds/",
       "date": "2025-10-15",
@@ -142,13 +149,6 @@
       "date": "2025-06-15",
       "platform": "Bear Blog",
       "description": "On the texture and granularity of reasoning."
-    },
-    {
-      "title": "Your Prompt's Favorite Prompt",
-      "url": "https://medium.com/@brysontang/your-prompts-favorite-prompt-fae76a0b0eb0",
-      "date": "2025-11-28",
-      "platform": "Medium",
-      "description": "LLMs are a megaphone, not a magic wand. Meta-prompting techniques."
     },
     {
       "title": "p5.js Recursive Inscriptions Guide",
