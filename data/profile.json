@@ -146,9 +146,16 @@
     {
       "title": "Your Prompt's Favorite Prompt",
       "url": "https://medium.com/@brysontang/your-prompts-favorite-prompt-fae76a0b0eb0",
-      "date": "2024-11-28",
+      "date": "2025-11-28",
       "platform": "Medium",
       "description": "LLMs are a megaphone, not a magic wand. Meta-prompting techniques."
+    },
+    {
+      "title": "p5.js Recursive Inscriptions Guide",
+      "url": "https://medium.com/@brysontang/p5js-inscriptions-guide-8188ab132f58",
+      "date": "2025-02-25",
+      "platform": "Medium",
+      "description": "How to inscribe generative art onto the Bitcoin blockchain for ~$12."
     },
     {
       "title": "Creating a Nostr Client in TypeScript",
@@ -163,13 +170,6 @@
       "date": "2023-06-04",
       "platform": "Medium",
       "description": "Using recursive logic to generate organic forms in generative art."
-    },
-    {
-      "title": "p5.js Recursive Inscriptions Guide",
-      "url": "https://medium.com/@brysontang/p5js-inscriptions-guide-8188ab132f58",
-      "date": "2023-02-25",
-      "platform": "Medium",
-      "description": "How to inscribe generative art onto the Bitcoin blockchain for ~$12."
     }
   ],
   "experience": [
