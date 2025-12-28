@@ -416,6 +416,63 @@ export default {
       return new Response('ok', { headers: corsHeaders(origin) });
     }
 
+    // REST API: Get guestbook entries
+    if (url.pathname === '/api/guestbook' && request.method === 'GET') {
+      const headers = corsHeaders(origin);
+      headers.set('Content-Type', 'application/json');
+
+      if (!env.GUESTBOOK) {
+        return new Response(JSON.stringify({ entries: [], error: 'Guestbook not configured' }), { headers });
+      }
+
+      try {
+        const list = await env.GUESTBOOK.list({ prefix: 'entry:' });
+        const entries: GuestbookEntry[] = [];
+
+        for (const key of list.keys) {
+          const value = await env.GUESTBOOK.get(key.name);
+          if (value) {
+            const entry = JSON.parse(value) as GuestbookEntry;
+            // Don't expose ip_hash to clients
+            const { ip_hash, ...publicEntry } = entry;
+            entries.push(publicEntry as GuestbookEntry);
+          }
+        }
+
+        // Sort by timestamp descending (newest first)
+        entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        return new Response(JSON.stringify({ entries }), { headers });
+      } catch (err) {
+        return new Response(JSON.stringify({ entries: [], error: 'Failed to fetch entries' }), { status: 500, headers });
+      }
+    }
+
+    // REST API: Submit guestbook entry
+    if (url.pathname === '/api/guestbook' && request.method === 'POST') {
+      const headers = corsHeaders(origin);
+      headers.set('Content-Type', 'application/json');
+
+      try {
+        const body = await request.json() as { name?: string; message?: string };
+
+        if (!body.name || !body.message) {
+          return new Response(JSON.stringify({ success: false, error: 'Name and message are required' }), { status: 400, headers });
+        }
+
+        const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+        const result = await leaveMessage(
+          { name: body.name, message: body.message },
+          env,
+          ip
+        );
+
+        return new Response(JSON.stringify(result), { headers });
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid request' }), { status: 400, headers });
+      }
+    }
+
     // MCP endpoint (POST for JSON-RPC)
     if (request.method === 'POST') {
       try {
