@@ -1,92 +1,246 @@
 {
   "profile": {
-    "name": "Your Name",
-    "tagline": "What you do in one line",
-    "bio": "A longer description of who you are and what you're passionate about.",
-    "location": "City, Country",
+    "name": "Bryson Tang",
+    "tagline": "Chief AI Officer | AI Systems Architect | MLOps Engineer",
+    "bio": "Builder & AI Engineer shipping production AI systems since 2021. Architected sub-1s semantic search across 300k documents using vector embeddings + MongoDB hybrid queries. Created Agent Tokens Protocol (open standard for AI agent identity). Built 5-agent orchestration pipeline handling 150k+ line edits with zero regressions. WPI Data Science graduate (3.75 GPA, High Distinction). BlueDot AI Safety Alignment certified.",
+    "location": "Nashua, NH (Remote/Relocation Ready)",
     "links": {
-      "website": "https://yoursite.dev",
-      "github": "https://github.com/yourusername",
-      "linkedin": "https://linkedin.com/in/yourusername",
-      "twitter": "https://twitter.com/yourusername"
+      "website": "https://brysontang.dev",
+      "github": "https://github.com/brysontang",
+      "linkedin": "https://www.linkedin.com/in/bryson-t-datascience/",
+      "bearblog": "https://noise2signal.bearblog.dev/"
     },
     "contact": {
-      "email": "hello@yoursite.dev",
+      "email": "brysontang@gmail.com",
+      "phone": "978-935-6430",
       "preferred": "email"
     }
   },
   "projects": [
     {
-      "name": "Project Name",
-      "description": "What this project does and why it matters.",
-      "tags": ["typescript", "cloudflare", "ai"],
+      "name": "Agent Tokens Protocol",
+      "description": "A standard proposal for AI Agent Identity. Shifting from adversarial bot detection to declared cryptographic provenance.",
+      "tags": ["protocol", "identity", "ai-safety"],
       "links": {
-        "demo": "https://project.yoursite.dev",
-        "github": "https://github.com/yourusername/project"
+        "website": "https://agenttokens.org",
+        "github": "https://github.com/agentokens/agent-tokens"
       },
       "featured": true
     },
     {
-      "name": "Another Project",
-      "description": "Description of your second project.",
-      "tags": ["react", "node", "postgres"],
+      "name": "resume-mcp",
+      "description": "Your identity as an API endpoint. An MCP server that lets AI agents query your professional profile with structured tools instead of scraping HTML.",
+      "tags": ["mcp", "cloudflare-workers", "agent-tokens"],
       "links": {
-        "github": "https://github.com/yourusername/another-project"
+        "github": "https://github.com/brysontang/resume-mcp",
+        "demo": "https://mcp.brysontang.dev"
+      },
+      "featured": true
+    },
+    {
+      "name": "Bloomdesk",
+      "description": "Addressing the Translation Gap between users and engineers. An intelligent pipeline that converts vague bug reports into structured, high-entropy technical tickets using LLMs.",
+      "tags": ["product", "ai-pipeline"],
+      "links": {
+        "demo": "https://bloomdesk.dev"
+      },
+      "featured": true
+    },
+    {
+      "name": "DeltaTask",
+      "description": "An MCP server that enables AI assistants to manage tasks in Obsidian. Bridges the gap between conversational AI and personal knowledge management.",
+      "tags": ["mcp", "python", "obsidian", "sqlite"],
+      "links": {
+        "github": "https://github.com/brysontang/DeltaTask"
+      },
+      "featured": true
+    },
+    {
+      "name": "crystallize",
+      "description": "A lightweight framework for rigorous, reproducible data science. Solving the hidden state problem of Jupyter notebooks by enforcing a Pipeline-as-Code philosophy.",
+      "tags": ["python", "mlops", "reproducibility"],
+      "links": {
+        "github": "https://github.com/brysontang/crystallize",
+        "docs": "https://brysontang.github.io/crystallize/"
+      },
+      "featured": true
+    },
+    {
+      "name": "ai-safety-compass",
+      "description": "An interactive tool for exploring AI safety perspectives and frameworks. Visualize where different approaches fall on the safety landscape.",
+      "tags": ["nextjs", "python", "ai-safety"],
+      "links": {
+        "github": "https://github.com/brysontang/ai-safety-compass",
+        "demo": "https://ai-safety-compass.vercel.app"
+      },
+      "featured": false
+    },
+    {
+      "name": "gcomm",
+      "description": "A Rust CLI for seamless communication with Ollama models. Fast, ergonomic, and designed for developer workflows.",
+      "tags": ["rust", "ollama", "devtools"],
+      "links": {
+        "github": "https://github.com/brysontang/gcomm",
+        "crates": "https://crates.io/crates/gcomm"
       },
       "featured": false
     }
   ],
   "writing": [
     {
-      "title": "Article Title",
-      "url": "https://blog.yoursite.dev/article",
-      "date": "2024-12-01",
-      "platform": "personal",
-      "description": "Brief description of what this article covers."
+      "title": "Your Prompt's Favorite Prompt",
+      "url": "https://medium.com/@brysontang/your-prompts-favorite-prompt-fae76a0b0eb0",
+      "date": "2024",
+      "platform": "Medium",
+      "description": "Meta-prompting techniques and recursive prompt engineering."
     },
     {
-      "title": "External Post",
-      "url": "https://dev.to/yourusername/post",
-      "date": "2024-11-15",
-      "platform": "dev.to",
-      "description": "Description of the external post."
+      "title": "Tree of Processing",
+      "url": "https://medium.com/@brysontang/tree-of-processing-bd002ca91396",
+      "date": "2023",
+      "platform": "Medium",
+      "description": "Using recursive logic to generate organic forms in generative art."
+    },
+    {
+      "title": "Creating a Nostr Client in TypeScript",
+      "url": "https://medium.com/@brysontang/creating-a-nostr-client-in-typescript-a0ce023a0bfc",
+      "date": "2023",
+      "platform": "Medium",
+      "description": "Building decentralized social applications on the Nostr protocol."
+    },
+    {
+      "title": "p5.js Recursive Inscriptions Guide",
+      "url": "https://medium.com/@brysontang/p5js-inscriptions-guide-8188ab132f58",
+      "date": "2023",
+      "platform": "Medium",
+      "description": "Guide to inscribing generative art on Bitcoin using p5.js."
     }
   ],
   "experience": [
     {
-      "role": "Senior Software Engineer",
-      "company": "Company Name",
+      "role": "Chief AI Officer",
+      "company": "CazVid LLC",
+      "location": "Nashua, NH (Remote)",
       "dates": {
-        "start": "2022-01",
+        "start": "2025-05",
         "end": null
       },
       "current": true,
-      "description": "What you do here and key accomplishments.",
+      "description": "Lead AI architecture for video-based job matching platform processing 100k+ candidate profiles.",
       "highlights": [
-        "Led development of key feature",
-        "Improved system performance by X%"
+        "Founded Palmera Labs (internal R&D): RAG systems, agent frameworks, alignment research",
+        "Executed 50k+ line refactor across 800 files in 24 hours using 5-agent pipeline with orthogonal routing",
+        "Reduced idea-to-prototype cycle from 14 days to 2 days via scope-plan-prototype workflow",
+        "Shipped ATS with invisible-AI UX: predictive defaults, auto-structuring, safe undo patterns",
+        "Drove 466 merge requests with zero production regressions via automated guardrails"
       ]
     },
     {
-      "role": "Software Engineer",
-      "company": "Previous Company",
+      "role": "Director of AI",
+      "company": "CazVid LLC",
+      "location": "Nashua, NH",
       "dates": {
-        "start": "2020-06",
-        "end": "2021-12"
+        "start": "2024-09",
+        "end": "2025-05"
       },
       "current": false,
-      "description": "Description of your role and impact.",
+      "description": "Built semantic search and ML infrastructure for job matching platform.",
       "highlights": [
-        "Built and shipped major product",
-        "Mentored junior developers"
+        "Achieved sub-1s full-text search across 300k resume chunks via LLM/RAG + MongoDB hybrid filters",
+        "Architected Kern ML service: FastAPI intake → Kafka queue → Redis state → NestJS/Pusher delivery",
+        "Built universal matching algorithm using triplet loss embeddings + hybrid vector/text search",
+        "Created no-code interface enabling non-engineers to deploy Codex-generated branches to production"
+      ]
+    },
+    {
+      "role": "Senior Software Engineer / AI Specialist",
+      "company": "CazVid LLC",
+      "location": "Phoenix, AZ",
+      "dates": {
+        "start": "2023-08",
+        "end": "2024-10"
+      },
+      "current": false,
+      "description": "Integrated AI capabilities and managed ML infrastructure.",
+      "highlights": [
+        "Integrated ChatGPT API for automated client workflows, reducing response latency by 60%",
+        "Built RAG-powered support desk handling 500+ daily queries with 94% resolution rate",
+        "Designed vector-based matching algorithms using FAISS + MongoDB, improving match accuracy 35%",
+        "Managed Apache Airflow pipelines processing 10k+ documents/day with 99.9% data consistency"
+      ]
+    },
+    {
+      "role": "Software Engineer / Data Scientist",
+      "company": "CazVid LLC",
+      "location": "Phoenix, AZ",
+      "dates": {
+        "start": "2022-06",
+        "end": "2023-08"
+      },
+      "current": false,
+      "description": "Built cloud infrastructure and led post-acquisition technical integration.",
+      "highlights": [
+        "Engineered AWS infrastructure (ECS, S3, Lambda) supporting 10k+ DAU with auto-scaling",
+        "Architected web platform extending mobile app, increasing user engagement 40%",
+        "Led post-acquisition technical integration: unified CI/CD, consolidated 3 codebases into 1"
+      ]
+    },
+    {
+      "role": "Full Stack Engineer / Junior Data Scientist",
+      "company": "Agency Leads",
+      "location": "Manchester, NH",
+      "dates": {
+        "start": "2021-09",
+        "end": "2022-06"
+      },
+      "current": false,
+      "description": "Built data platform and optimized search performance.",
+      "highlights": [
+        "Built Vue.js + Express.js data entry platform from scratch, processing 50k+ records",
+        "Reduced Typesense query latency from 4s to 0.4s (10x improvement) via index tuning",
+        "Increased data production 125% by implementing work classification specializations",
+        "Created Tableau dashboards driving $2M+ in data-informed sales decisions"
       ]
     }
   ],
   "skills": {
-    "languages": ["TypeScript", "Python", "Go", "Rust"],
-    "frameworks": ["React", "Next.js", "Node.js", "FastAPI"],
-    "infrastructure": ["AWS", "Cloudflare", "Docker", "Kubernetes"],
-    "domains": ["Distributed Systems", "AI/ML", "Developer Tools"],
-    "currently_learning": ["Rust", "WebAssembly"]
-  }
+    "languages": ["Python", "TypeScript", "JavaScript", "Rust", "SQL", "Bash"],
+    "ml_ai": ["PyTorch", "MLX", "scikit-learn", "Hugging Face Transformers", "LangChain", "FAISS", "RAG pipelines", "Vector Embeddings", "Triplet Loss"],
+    "mlops": ["Apache Airflow", "MLflow", "Docker", "Kubernetes", "DVC", "Weights & Biases", "GitHub Actions", "GitLab CI/CD"],
+    "infrastructure": ["AWS (ECS, S3, Lambda, SageMaker)", "Cloudflare Workers", "Terraform", "Kafka", "Redis", "Nginx"],
+    "databases": ["PostgreSQL", "MongoDB", "MySQL", "Typesense", "Pinecone", "Weaviate", "SQLite"],
+    "web": ["React", "Next.js", "Vue.js", "Astro", "FastAPI", "NestJS", "Express.js", "Tailwind CSS"],
+    "protocols": ["MCP (Model Context Protocol)", "Agent Tokens", "REST", "GraphQL", "WebSocket", "Nostr"],
+    "domains": ["AI Systems Architecture", "MLOps", "AI Safety", "Agent Identity", "Generative Art", "Decentralized Protocols"]
+  },
+  "education": [
+    {
+      "institution": "Worcester Polytechnic Institute (WPI)",
+      "degree": "B.S. Data Science",
+      "minor": "Mathematical Sciences",
+      "graduation": "2021-05",
+      "gpa": "3.75/4.0",
+      "honors": "Graduated with High Distinction"
+    },
+    {
+      "institution": "BlueDot Impact",
+      "degree": "AI Safety Fundamentals: Alignment",
+      "graduation": "2024-06",
+      "details": "12-week certification program"
+    }
+  ],
+  "publications": [
+    {
+      "title": "Agent Tokens Protocol",
+      "description": "Open standard for AI agent identity via cryptographic provenance.",
+      "url": "https://agenttokens.org",
+      "year": "2024"
+    },
+    {
+      "title": "Project EVE: Novel Launchsondes for Atmospheric Data Collection",
+      "description": "IEEE Xplore published. Co-author on environmental sensor network paper.",
+      "url": "https://ieeexplore.ieee.org/document/9705814",
+      "year": "2022"
+    }
+  ]
 }
