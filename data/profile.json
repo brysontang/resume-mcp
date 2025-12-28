@@ -88,32 +88,88 @@
   ],
   "writing": [
     {
-      "title": "Your Prompt's Favorite Prompt",
-      "url": "https://medium.com/@brysontang/your-prompts-favorite-prompt-fae76a0b0eb0",
-      "date": "2024",
-      "platform": "Medium",
-      "description": "Meta-prompting techniques and recursive prompt engineering."
+      "title": "Calibration, Not Benchmarking",
+      "url": "https://noise2signal.bearblog.dev/calibration-not-benchmarking/",
+      "date": "2025-12-23",
+      "platform": "Bear Blog",
+      "description": "On measuring AI capabilities through calibration rather than benchmarks."
     },
     {
-      "title": "Tree of Processing",
-      "url": "https://medium.com/@brysontang/tree-of-processing-bd002ca91396",
-      "date": "2023",
+      "title": "The Bitter Lesson 2.0: Reasoning Without Worlds",
+      "url": "https://noise2signal.bearblog.dev/the-bitter-lesson-20-reasoning-without-worlds/",
+      "date": "2025-10-15",
+      "platform": "Bear Blog",
+      "description": "Revisiting Rich Sutton's bitter lesson in the age of reasoning models."
+    },
+    {
+      "title": "Circuit Engineers: The Next Frontier of Software",
+      "url": "https://noise2signal.bearblog.dev/circuit-engineers-the-next-frontier-of-software/",
+      "date": "2025-09-02",
+      "platform": "Bear Blog",
+      "description": "How AI is changing the nature of software engineering."
+    },
+    {
+      "title": "The ChatBubble: Stop Bolting. Start Building.",
+      "url": "https://noise2signal.bearblog.dev/the-chatbubble-build-value-not-boltons/",
+      "date": "2025-08-29",
+      "platform": "Bear Blog",
+      "description": "Building AI-native products vs bolting AI onto existing ones."
+    },
+    {
+      "title": "Twelve Principles of AI-Native Engineering",
+      "url": "https://noise2signal.bearblog.dev/twelve-principles-of-ainative-engineering/",
+      "date": "2025-08-29",
+      "platform": "Bear Blog",
+      "description": "A manifesto for building software in the age of AI."
+    },
+    {
+      "title": "The Last Illusion is 'As a Large Language Model'",
+      "url": "https://noise2signal.bearblog.dev/the-last-illusion/",
+      "date": "2025-07-03",
+      "platform": "Bear Blog",
+      "description": "On the performative nature of AI disclaimers."
+    },
+    {
+      "title": "The Quiet Pivot of Dr. Seuss",
+      "url": "https://noise2signal.bearblog.dev/quiet-pivot-of-dr-seuss/",
+      "date": "2025-06-16",
+      "platform": "Bear Blog",
+      "description": "Creativity, constraints, and finding your voice."
+    },
+    {
+      "title": "Grain of Thought",
+      "url": "https://noise2signal.bearblog.dev/grain-of-thought/",
+      "date": "2025-06-15",
+      "platform": "Bear Blog",
+      "description": "On the texture and granularity of reasoning."
+    },
+    {
+      "title": "Your Prompt's Favorite Prompt",
+      "url": "https://medium.com/@brysontang/your-prompts-favorite-prompt-fae76a0b0eb0",
+      "date": "2024-11-28",
       "platform": "Medium",
-      "description": "Using recursive logic to generate organic forms in generative art."
+      "description": "LLMs are a megaphone, not a magic wand. Meta-prompting techniques."
     },
     {
       "title": "Creating a Nostr Client in TypeScript",
       "url": "https://medium.com/@brysontang/creating-a-nostr-client-in-typescript-a0ce023a0bfc",
-      "date": "2023",
+      "date": "2023-10-02",
       "platform": "Medium",
-      "description": "Building decentralized social applications on the Nostr protocol."
+      "description": "Building a creative coding platform on the Nostr protocol."
+    },
+    {
+      "title": "Tree of Processing",
+      "url": "https://medium.com/@brysontang/tree-of-processing-bd002ca91396",
+      "date": "2023-06-04",
+      "platform": "Medium",
+      "description": "Using recursive logic to generate organic forms in generative art."
     },
     {
       "title": "p5.js Recursive Inscriptions Guide",
       "url": "https://medium.com/@brysontang/p5js-inscriptions-guide-8188ab132f58",
-      "date": "2023",
+      "date": "2023-02-25",
       "platform": "Medium",
-      "description": "Guide to inscribing generative art on Bitcoin using p5.js."
+      "description": "How to inscribe generative art onto the Bitcoin blockchain for ~$12."
     }
   ],
   "experience": [
