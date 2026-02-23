@@ -1,11 +1,11 @@
 {
   "profile": {
     "name": "Bryson Tang",
-    "tagline": "Chief AI Officer | AI Systems Architect | MLOps Engineer",
-    "bio": "Builder & AI Engineer shipping production AI systems since 2021. Architected sub-1s semantic search across 300k documents using vector embeddings + MongoDB hybrid queries. Created Agent Tokens Protocol (open standard for AI agent identity). Built 5-agent orchestration pipeline handling 150k+ line edits with zero regressions. WPI Data Science graduate (3.75 GPA, High Distinction). BlueDot AI Safety Alignment certified.",
+    "tagline": "Founder, Syntropy Systems | AI Systems Architect | Research Engineer",
+    "bio": "AI Systems Architect who builds infrastructure for ML at scale and investigates mechanistic interpretability. Designed Kern (525K requests/month event-driven ML service), Crystallize (rigorous experimental framework), and replicated Anthropic's Golden Gate Claude on consumer hardware. Implements from first principles — from sparse autoencoders to production Kafka pipelines. WPI Data Science graduate (3.75 GPA, High Distinction). BlueDot AI Safety Alignment certified.",
     "location": "Nashua, NH (Remote/Relocation Ready)",
     "links": {
-      "website": "https://brysontang.dev",
+      "website": "https://brysontang.com",
       "github": "https://github.com/brysontang",
       "linkedin": "https://www.linkedin.com/in/bryson-t-datascience/",
       "bearblog": "https://noise2signal.bearblog.dev/"
@@ -18,12 +18,51 @@
   },
   "projects": [
     {
+      "name": "Golden Gate Qwen",
+      "description": "Minimal replication of Anthropic's Golden Gate Claude on consumer hardware. Trains a Sparse Autoencoder on Qwen2.5-1.5B, discovers interpretable features, and steers model behavior — all on an RTX 3070 Ti.",
+      "tags": ["interpretability", "sparse-autoencoder", "mechanistic-interpretability", "pytorch"],
+      "links": {
+        "github": "https://github.com/brysontang/golden-gate-qwen"
+      },
+      "featured": true
+    },
+    {
+      "name": "ContextWars",
+      "description": "Adversarial token convergence experiments on MLX. Pits language models against each other to reveal training strata. Under pressure, models collapse to their most defensible tokens, revealing composition invisible in normal evaluation.",
+      "tags": ["interpretability", "adversarial", "model-fingerprinting", "mlx"],
+      "links": {
+        "github": "https://github.com/brysontang/ContextWars"
+      },
+      "featured": true
+    },
+    {
+      "name": "AI Safety Compass",
+      "description": "70-paper literature review exploring meta-alignment — whether models internalize their lab's safety philosophy. Surveyed 10 frontier models with 40 questions. Interactive tool included.",
+      "tags": ["research", "ai-safety", "meta-alignment"],
+      "links": {
+        "github": "https://github.com/brysontang/ai-safety-compass",
+        "paper": "https://github.com/brysontang/ai-safety-compass/blob/main/PAPER.md",
+        "demo": "https://ai-safety-compass.vercel.app"
+      },
+      "featured": true
+    },
+    {
       "name": "Agent Tokens Protocol",
-      "description": "A standard proposal for AI Agent Identity. Shifting from adversarial bot detection to declared cryptographic provenance.",
-      "tags": ["protocol", "identity", "ai-safety"],
+      "description": "A cryptographic protocol for agent provenance. Formalizes identity via digital signatures rather than heuristic detection, applying distributed systems theory to the emerging agent ecosystem.",
+      "tags": ["protocol", "identity", "ai-safety", "agent-systems"],
       "links": {
         "website": "https://agenttokens.org",
         "github": "https://github.com/agentokens/agent-tokens"
+      },
+      "featured": true
+    },
+    {
+      "name": "crystallize",
+      "description": "A framework that makes data science experiments reproducible. Treats each experiment as an immutable record with automatic statistical checks. Long-term goal: infrastructure that lets AI agents run their own experiments.",
+      "tags": ["python", "reproducibility", "experimental-rigor"],
+      "links": {
+        "github": "https://github.com/brysontang/crystallize",
+        "docs": "https://brysontang.github.io/crystallize/"
       },
       "featured": true
     },
@@ -33,7 +72,7 @@
       "tags": ["mcp", "cloudflare-workers", "agent-tokens"],
       "links": {
         "github": "https://github.com/brysontang/resume-mcp",
-        "demo": "https://mcp.brysontang.dev"
+        "demo": "https://mcp.brysontang.com"
       },
       "featured": true
     },
@@ -44,7 +83,7 @@
       "links": {
         "demo": "https://bloomdesk.dev"
       },
-      "featured": true
+      "featured": false
     },
     {
       "name": "DeltaTask",
@@ -52,26 +91,6 @@
       "tags": ["mcp", "python", "obsidian", "sqlite"],
       "links": {
         "github": "https://github.com/brysontang/DeltaTask"
-      },
-      "featured": true
-    },
-    {
-      "name": "crystallize",
-      "description": "A lightweight framework for rigorous, reproducible data science. Solving the hidden state problem of Jupyter notebooks by enforcing a Pipeline-as-Code philosophy.",
-      "tags": ["python", "mlops", "reproducibility"],
-      "links": {
-        "github": "https://github.com/brysontang/crystallize",
-        "docs": "https://brysontang.github.io/crystallize/"
-      },
-      "featured": true
-    },
-    {
-      "name": "ai-safety-compass",
-      "description": "An interactive tool for exploring AI safety perspectives and frameworks. Visualize where different approaches fall on the safety landscape.",
-      "tags": ["nextjs", "python", "ai-safety"],
-      "links": {
-        "github": "https://github.com/brysontang/ai-safety-compass",
-        "demo": "https://ai-safety-compass.vercel.app"
       },
       "featured": false
     },
@@ -174,20 +193,35 @@
   ],
   "experience": [
     {
+      "role": "Founder",
+      "company": "Syntropy Systems (Tang Tensor Trends LLC)",
+      "location": "Nashua, NH",
+      "dates": {
+        "start": "2026-01",
+        "end": null
+      },
+      "current": true,
+      "description": "AI infrastructure and research company.",
+      "highlights": [
+        "Building AI infrastructure: shared authentication, payments, and LLM tooling across product portfolio",
+        "Independent research: replicating Anthropic's Golden Gate Claude on consumer hardware — sparse autoencoders for mechanistic interpretability",
+        "Go backend architecture designed to scale with users, not ideas — hosting 100+ products on minimal infrastructure"
+      ]
+    },
+    {
       "role": "Chief AI Officer",
       "company": "CazVid LLC",
       "location": "Nashua, NH (Remote)",
       "dates": {
         "start": "2025-05",
-        "end": null
+        "end": "2025-12"
       },
-      "current": true,
+      "current": false,
       "description": "Lead AI architecture for video-based job matching platform processing 100k+ candidate profiles.",
       "highlights": [
-        "Founded Palmera Labs (internal R&D): RAG systems, agent frameworks, alignment research",
-        "Executed 50k+ line refactor across 800 files in 24 hours using 5-agent pipeline with orthogonal routing",
-        "Reduced idea-to-prototype cycle from 14 days to 2 days via scope-plan-prototype workflow",
-        "Shipped ATS with invisible-AI UX: predictive defaults, auto-structuring, safe undo patterns",
+        "Architected Kern ML infrastructure (525K requests/month): event-driven pipelines, probabilistic classification, embedding systems",
+        "Transformed 150k-line legacy codebase into agent-native code (1400 lint → 900 type → 300 tests)",
+        "Founded Palmera Labs (internal R&D): RAG systems, agent frameworks, fast-weight plasticity research",
         "Drove 466 merge requests with zero production regressions via automated guardrails"
       ]
     },
@@ -221,7 +255,7 @@
       "highlights": [
         "Integrated ChatGPT API for automated client workflows, reducing response latency by 60%",
         "Built RAG-powered support desk handling 500+ daily queries with 94% resolution rate",
-        "Designed vector-based matching algorithms using FAISS + MongoDB, improving match accuracy 35%",
+        "Designed vector-based matching algorithms using MongoDB Atlas Vector Search, improving match accuracy 35%",
         "Managed Apache Airflow pipelines processing 10k+ documents/day with 99.9% data consistency"
       ]
     },
@@ -236,7 +270,7 @@
       "current": false,
       "description": "Built cloud infrastructure and led post-acquisition technical integration.",
       "highlights": [
-        "Engineered AWS infrastructure (ECS, S3, Lambda) supporting 10k+ DAU with auto-scaling",
+        "Engineered AWS infrastructure (ECS, S3) supporting 10k+ DAU with auto-scaling",
         "Architected web platform extending mobile app, increasing user engagement 40%",
         "Led post-acquisition technical integration: unified CI/CD, consolidated 3 codebases into 1"
       ]
@@ -254,20 +288,20 @@
       "highlights": [
         "Built Vue.js + Express.js data entry platform from scratch, processing 50k+ records",
         "Reduced Typesense query latency from 4s to 0.4s (10x improvement) via index tuning",
-        "Increased data production 125% by implementing work classification specializations",
-        "Created Tableau dashboards driving $2M+ in data-informed sales decisions"
+        "Increased data production 125% by implementing work classification specializations"
       ]
     }
   ],
   "skills": {
+    "research": ["Mechanistic Interpretability", "Sparse Autoencoders", "Hebbian Learning", "Fast Weights", "Meta-Learning", "Agent Protocols"],
     "languages": ["Python", "TypeScript", "JavaScript", "Rust", "SQL", "Bash"],
-    "ml_ai": ["PyTorch", "MLX", "scikit-learn", "Hugging Face Transformers", "LangChain", "FAISS", "RAG pipelines", "Vector Embeddings", "Triplet Loss"],
-    "mlops": ["Apache Airflow", "MLflow", "Docker", "Kubernetes", "DVC", "Weights & Biases", "GitHub Actions", "GitLab CI/CD"],
-    "infrastructure": ["AWS (ECS, S3, Lambda, SageMaker)", "Cloudflare Workers", "Terraform", "Kafka", "Redis", "Nginx"],
-    "databases": ["PostgreSQL", "MongoDB", "MySQL", "Typesense", "Pinecone", "Weaviate", "SQLite"],
-    "web": ["React", "Next.js", "Vue.js", "Astro", "FastAPI", "NestJS", "Express.js", "Tailwind CSS"],
-    "protocols": ["MCP (Model Context Protocol)", "Agent Tokens", "REST", "GraphQL", "WebSocket", "Nostr"],
-    "domains": ["AI Systems Architecture", "MLOps", "AI Safety", "Agent Identity", "Generative Art", "Decentralized Protocols"]
+    "ml_ai": ["PyTorch", "MLX", "scikit-learn", "Hugging Face", "LangChain", "RAG pipelines", "Vector Embeddings", "Triplet Loss"],
+    "mlops": ["Apache Airflow", "MLflow", "Docker", "Kubernetes", "Weights & Biases", "GitHub Actions"],
+    "infrastructure": ["AWS (ECS, S3)", "Cloudflare Workers", "Terraform", "Kafka", "Redis"],
+    "databases": ["PostgreSQL", "MongoDB", "Typesense", "Pinecone", "SQLite"],
+    "web": ["React", "Next.js", "Vue.js", "Astro", "FastAPI", "NestJS"],
+    "protocols": ["MCP (Model Context Protocol)", "Agent Tokens", "REST", "GraphQL", "Nostr"],
+    "domains": ["AI Systems Architecture", "Mechanistic Interpretability", "AI Safety", "MLOps", "Agent Identity", "Generative Art"]
   },
   "education": [
     {
@@ -286,6 +320,12 @@
     }
   ],
   "publications": [
+    {
+      "title": "AI Safety Compass",
+      "description": "70-paper literature review exploring model meta-alignment. Original survey methodology mapping where models sit on alignment/openness axes.",
+      "url": "https://github.com/brysontang/ai-safety-compass/blob/main/PAPER.md",
+      "year": "2024"
+    },
     {
       "title": "Agent Tokens Protocol",
       "description": "Open standard for AI agent identity via cryptographic provenance.",
