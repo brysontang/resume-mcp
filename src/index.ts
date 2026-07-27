@@ -5,13 +5,61 @@
  * with structured tools instead of scraping HTML.
  */
 
-import profileData from '../data/profile.json';
+import bundledProfileData from '../data/profile.json';
 import { decodeAgentTokenV0, getIntentV1 } from '@agent-tokens/core';
+
+const PROFILE_URL = 'https://brysontang.com/data/profile.json';
+const PROFILE_KV_KEY = 'profile:latest';
+const PROFILE_TTL_SECONDS = 3600; // 1 hour
 
 // Types
 interface Env {
   GUESTBOOK?: KVNamespace;
   CORS_ORIGIN?: string;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ProfileData = typeof bundledProfileData & Record<string, any>;
+
+/**
+ * Get profile data with KV cache → remote fetch → bundled fallback
+ */
+async function getProfileData(env: Env): Promise<ProfileData> {
+  // 1. Check KV cache
+  if (env.GUESTBOOK) {
+    try {
+      const cached = await env.GUESTBOOK.get(PROFILE_KV_KEY, 'json');
+      if (cached) return cached as ProfileData;
+    } catch {
+      // KV miss or error, continue to fetch
+    }
+  }
+
+  // 2. Fetch from origin
+  try {
+    const res = await fetch(PROFILE_URL, {
+      headers: { 'User-Agent': 'resume-mcp/1.0' },
+    });
+    if (res.ok) {
+      const data = await res.json() as ProfileData;
+      // Cache in KV
+      if (env.GUESTBOOK) {
+        try {
+          await env.GUESTBOOK.put(PROFILE_KV_KEY, JSON.stringify(data), {
+            expirationTtl: PROFILE_TTL_SECONDS,
+          });
+        } catch {
+          // Cache write failed, non-critical
+        }
+      }
+      return data;
+    }
+  } catch {
+    // Fetch failed, fall back to bundled
+  }
+
+  // 3. Fallback to bundled copy
+  return bundledProfileData as ProfileData;
 }
 
 interface JsonRpcRequest {
@@ -127,30 +175,30 @@ const TOOLS = [
 const FREE_TOOLS = ['get_profile', 'get_projects', 'get_writing', 'leave_message'];
 const GATED_TOOLS = ['get_experience', 'get_skills'];
 
-// Tool implementations
-function getProfile() {
+// Tool implementations — all accept profileData so they use fresh data
+function getProfile(profileData: ProfileData) {
   return profileData.profile;
 }
 
-function getProjects(params: { tag?: string; featured_only?: boolean }) {
+function getProjects(profileData: ProfileData, params: { tag?: string; featured_only?: boolean }) {
   let projects = profileData.projects;
 
   if (params.tag) {
-    projects = projects.filter(p => p.tags.includes(params.tag!.toLowerCase()));
+    projects = projects.filter((p: { tags: string[] }) => p.tags.includes(params.tag!.toLowerCase()));
   }
 
   if (params.featured_only) {
-    projects = projects.filter(p => p.featured);
+    projects = projects.filter((p: { featured?: boolean }) => p.featured);
   }
 
   return projects;
 }
 
-function getWriting(params: { platform?: string; limit?: number }) {
+function getWriting(profileData: ProfileData, params: { platform?: string; limit?: number }) {
   let writing = profileData.writing;
 
   if (params.platform) {
-    writing = writing.filter(w => w.platform === params.platform);
+    writing = writing.filter((w: { platform: string }) => w.platform === params.platform);
   }
 
   if (params.limit && params.limit > 0) {
@@ -160,17 +208,17 @@ function getWriting(params: { platform?: string; limit?: number }) {
   return writing;
 }
 
-function getExperience(params: { current_only?: boolean }) {
+function getExperience(profileData: ProfileData, params: { current_only?: boolean }) {
   let experience = profileData.experience;
 
   if (params.current_only) {
-    experience = experience.filter(e => e.current);
+    experience = experience.filter((e: { current?: boolean }) => e.current);
   }
 
   return experience;
 }
 
-function getSkills(params: { category?: string }) {
+function getSkills(profileData: ProfileData, params: { category?: string }) {
   const skills = profileData.skills;
 
   if (params.category && params.category in skills) {
@@ -227,7 +275,8 @@ async function handleToolCall(
   params: Record<string, unknown>,
   session: SessionState,
   env: Env,
-  request: Request
+  request: Request,
+  profileData: ProfileData
 ): Promise<{ result?: unknown; error?: { code: number; message: string; data?: unknown } }> {
   // Check access for gated tools
   if (GATED_TOOLS.includes(tool) && !session.hasAccess) {
@@ -247,19 +296,19 @@ async function handleToolCall(
   // Execute tool
   switch (tool) {
     case 'get_profile':
-      return { result: getProfile() };
+      return { result: getProfile(profileData) };
 
     case 'get_projects':
-      return { result: getProjects(params as { tag?: string; featured_only?: boolean }) };
+      return { result: getProjects(profileData, params as { tag?: string; featured_only?: boolean }) };
 
     case 'get_writing':
-      return { result: getWriting(params as { platform?: string; limit?: number }) };
+      return { result: getWriting(profileData, params as { platform?: string; limit?: number }) };
 
     case 'get_experience':
-      return { result: getExperience(params as { current_only?: boolean }) };
+      return { result: getExperience(profileData, params as { current_only?: boolean }) };
 
     case 'get_skills':
-      return { result: getSkills(params as { category?: string }) };
+      return { result: getSkills(profileData, params as { category?: string }) };
 
     case 'leave_message': {
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -288,7 +337,8 @@ async function handleJsonRpc(
   rpc: JsonRpcRequest,
   session: SessionState,
   env: Env,
-  request: Request
+  request: Request,
+  profileData: ProfileData
 ): Promise<JsonRpcResponse> {
   const { id, method, params } = rpc;
 
@@ -326,7 +376,8 @@ async function handleJsonRpc(
         toolParams.arguments || {},
         session,
         env,
-        request
+        request,
+        profileData
       );
 
       if (toolResult.error) {
@@ -419,6 +470,9 @@ export default {
     // MCP endpoint (POST for JSON-RPC)
     if (request.method === 'POST') {
       try {
+        // Load profile data (KV cache → fetch → bundled fallback)
+        const profileData = await getProfileData(env);
+
         // Check for Agent Token
         const agentToken = request.headers.get('Agent-Token');
         const sessionKey = getSessionKey(request);
@@ -459,7 +513,7 @@ export default {
         // Handle batch requests
         if (Array.isArray(body)) {
           const responses = await Promise.all(
-            body.map(rpc => handleJsonRpc(rpc, session, env, request))
+            body.map(rpc => handleJsonRpc(rpc, session, env, request, profileData))
           );
           const headers = corsHeaders(origin);
           headers.set('Content-Type', 'application/json');
@@ -467,7 +521,7 @@ export default {
         }
 
         // Single request
-        const response = await handleJsonRpc(body, session, env, request);
+        const response = await handleJsonRpc(body, session, env, request, profileData);
         const headers = corsHeaders(origin);
         headers.set('Content-Type', 'application/json');
         return new Response(JSON.stringify(response), { headers });
