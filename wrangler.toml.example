@@ -9,11 +9,22 @@ compatibility_flags = ["nodejs_compat"]
 #   { pattern = "mcp.yourdomain.dev", custom_domain = true }
 # ]
 
-# KV namespace for guestbook storage
+# KV namespace for the profile cache and guestbook rate limits
 # Create with: wrangler kv:namespace create "GUESTBOOK"
 # [[kv_namespaces]]
 # binding = "GUESTBOOK"
 # id = "your-kv-namespace-id"
+
+# D1 database the guestbook lives in, shared with your site's guestbook API.
+# Needs a `guestbook` table: name, message, ip_hash, created_at, agent_id, contact
+# (see brysontang/bryt12.github.io workers/schema.sql)
+# [[d1_databases]]
+# binding = "GUESTBOOK_DB"
+# database_name = "your-guestbook-db"
+# database_id = "your-d1-database-id"
+
+# Secrets (optional): wrangler secret put IP_SALT
+# Use the same salt as your site's guestbook API so ip_hash values line up
 
 # Environment variables (optional)
 # [vars]

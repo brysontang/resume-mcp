@@ -49,7 +49,7 @@ flowchart LR
 sequenceDiagram
     participant Agent as AI Agent
     participant MCP as MCP Server
-    participant KV as Cloudflare KV
+    participant D1 as Guestbook (D1)
 
     Agent->>MCP: POST /initialize
     MCP-->>Agent: Server info + capabilities
@@ -66,7 +66,7 @@ sequenceDiagram
     MCP-->>Agent: Error: access_required
 
     Agent->>MCP: POST /tools/call (leave_message)
-    MCP->>KV: Store guestbook entry
+    MCP->>D1: Store guestbook entry
     MCP-->>Agent: Access granted!
 
     Agent->>MCP: POST /tools/call (get_experience)
@@ -145,7 +145,7 @@ GET https://mcp.brysontang.dev/.well-known/mcp.json
 | `get_writing()` | Articles and blog posts | Free |
 | `get_experience()` | Work history | Gated |
 | `get_skills()` | Technical skills by category | Gated |
-| `leave_message(name, message)` | Sign the guestbook | Free |
+| `leave_message(name, message)` | Sign the guestbook (shows up on brysontang.com/guestbook) | Free |
 
 ## The Toll
 
@@ -196,11 +196,13 @@ cp wrangler.toml.example wrangler.toml
 # Edit wrangler.toml with your settings
 ```
 
-Optional: Create KV namespace for persistent guestbook:
+Optional: Create a KV namespace for the profile cache and guestbook rate limits:
 ```bash
 wrangler kv:namespace create "GUESTBOOK"
 # Add the returned binding to wrangler.toml
 ```
+
+`leave_message` writes to a D1 `guestbook` table (binding `GUESTBOOK_DB`), the same one your site's guestbook reads, so MCP entries show up next to everyone else's. See `wrangler.toml.example`.
 
 ### 4. Deploy
 

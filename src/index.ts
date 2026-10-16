@@ -14,7 +14,12 @@ const PROFILE_TTL_SECONDS = 3600; // 1 hour
 
 // Types
 interface Env {
+  /** Profile cache and guestbook rate limits */
   GUESTBOOK?: KVNamespace;
+  /** brysontang.com's guestbook, shared with the site's API worker (api.brysontang.com) */
+  GUESTBOOK_DB?: D1Database;
+  /** Same salt as the site's API worker, so ip_hash values line up across signing paths */
+  IP_SALT?: string;
   CORS_ORIGIN?: string;
 }
 
@@ -80,24 +85,15 @@ interface JsonRpcResponse {
   };
 }
 
-interface GuestbookEntry {
-  name: string;
-  message: string;
-  agent_id?: string;
-  contact?: string;
-  timestamp: string;
-  ip_hash?: string;
-}
-
 interface SessionState {
   hasAccess: boolean;
   agentToken?: string;
 }
 
-// Hash IP for privacy-preserving logging
-async function hashIP(ip: string): Promise<string> {
+// Hash IP for privacy-preserving rate limiting
+async function hashIP(ip: string, salt = 'resume-mcp-salt'): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(ip + 'resume-mcp-salt');
+  const data = encoder.encode(ip + salt);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -158,14 +154,14 @@ const TOOLS = [
   },
   {
     name: 'leave_message',
-    description: 'Leave a message in the guestbook. Unlocks access to gated tools.',
+    description: 'Sign the guestbook at brysontang.com/guestbook. Your name and message appear there publicly. One entry per hour. Also unlocks the gated tools.',
     inputSchema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Your name or identifier' },
-        message: { type: 'string', description: 'Your message or reason for visiting' },
-        agent_id: { type: 'string', description: 'Optional agent identifier' },
-        contact: { type: 'string', description: 'Optional contact info' }
+        name: { type: 'string', maxLength: 50, description: 'Your name or identifier (shown publicly)' },
+        message: { type: 'string', maxLength: 500, description: 'Your message for the guestbook (shown publicly)' },
+        agent_id: { type: 'string', description: 'Optional agent identifier (kept private)' },
+        contact: { type: 'string', description: 'Optional contact info (kept private)' }
       },
       required: ['name', 'message']
     }
@@ -228,35 +224,59 @@ function getSkills(profileData: ProfileData, params: { category?: string }) {
   return skills;
 }
 
+const GUESTBOOK_PAGE = 'https://brysontang.com/guestbook';
+
+// Same rules as the site's other signing paths (api.brysontang.com/api/guestbook)
 async function leaveMessage(
-  params: { name: string; message: string; agent_id?: string; contact?: string },
+  params: { name?: unknown; message?: unknown; agent_id?: unknown; contact?: unknown },
   env: Env,
   ip: string
 ): Promise<{ success: boolean; access_granted: boolean; message: string }> {
-  const entry: GuestbookEntry = {
-    name: params.name,
-    message: params.message,
-    agent_id: params.agent_id,
-    contact: params.contact,
-    timestamp: new Date().toISOString(),
-    ip_hash: await hashIP(ip)
-  };
+  const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+  const name = typeof params.name === 'string' ? params.name.trim() : '';
+  const message = typeof params.message === 'string' ? params.message.trim() : '';
+  const notSigned = (reason: string) => ({ success: false, access_granted: false, message: reason });
 
-  // Store in KV if available
-  if (env.GUESTBOOK) {
-    const key = `entry:${Date.now()}:${crypto.randomUUID()}`;
-    await env.GUESTBOOK.put(key, JSON.stringify(entry), {
-      metadata: { name: entry.name, timestamp: entry.timestamp }
-    });
+  if (!name || !message) return notSigned('Not signed: name and message are both required.');
+  if (name.length > 50) return notSigned('Not signed: name too long (max 50 characters).');
+  if (message.length > 500) return notSigned('Not signed: message too long (max 500 characters).');
+
+  if (!env.GUESTBOOK_DB) {
+    console.error('leave_message: GUESTBOOK_DB binding is missing');
+    return notSigned('Not signed: the guestbook is unavailable right now. Please try again later.');
   }
 
-  // Log to console (visible in Cloudflare dashboard)
-  console.log('Guestbook entry:', JSON.stringify(entry));
+  const ipHash = await hashIP(ip, env.IP_SALT);
+  const rateLimitKey = `guestbook_rate_${ipHash}`;
+  if (env.GUESTBOOK && (await env.GUESTBOOK.get(rateLimitKey))) {
+    return {
+      success: false,
+      access_granted: true,
+      message: `You already signed in the last hour, so this one wasn't added. Your earlier entry is at ${GUESTBOOK_PAGE}, and you have access to all profile information.`
+    };
+  }
+
+  await env.GUESTBOOK_DB.prepare(
+    'INSERT INTO guestbook (name, message, ip_hash, created_at, agent_id, contact) VALUES (?, ?, ?, ?, ?, ?)'
+  )
+    .bind(
+      name,
+      message,
+      ipHash,
+      new Date().toISOString(),
+      text(params.agent_id, 100) || null,
+      text(params.contact, 200) || null
+    )
+    .run();
+
+  if (env.GUESTBOOK) {
+    await env.GUESTBOOK.put(rateLimitKey, '1', { expirationTtl: 3600 });
+  }
 
   return {
     success: true,
     access_granted: true,
-    message: `Thanks, ${params.name}! You now have access to all profile information.`
+    message: `Thanks, ${name}! Your entry is live at ${GUESTBOOK_PAGE}, and you now have access to all profile information.`
   };
 }
 
@@ -312,13 +332,9 @@ async function handleToolCall(
 
     case 'leave_message': {
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-      const result = await leaveMessage(
-        params as { name: string; message: string; agent_id?: string; contact?: string },
-        env,
-        ip
-      );
-      // Grant access for this session
-      session.hasAccess = true;
+      const result = await leaveMessage(params, env, ip);
+      // Grant access for this session once they've signed (now or earlier this hour)
+      if (result.access_granted) session.hasAccess = true;
       return { result };
     }
 
@@ -579,7 +595,7 @@ export default {
   <h3>Access</h3>
   <p>Some tools require introduction. Either:</p>
   <ul>
-    <li>Call <code>leave_message()</code> to introduce yourself</li>
+    <li>Call <code>leave_message()</code> to introduce yourself (it signs the <a href="${GUESTBOOK_PAGE}">guestbook</a>)</li>
     <li>Include an <code>Agent-Token</code> header</li>
   </ul>
 
