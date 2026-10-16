@@ -437,6 +437,19 @@ async function handleJsonRpc(
   }
 }
 
+// MCP Server Card (SEP-1649). Keep in sync with brysontang.com/.well-known/mcp/server-card.json
+// (bryt12.github.io public/.well-known/mcp/server-card.json)
+const SERVER_CARD = {
+  serverInfo: { name: 'resume-mcp', title: 'Bryson Tang', version: '1.0.0' },
+  description:
+    "Bryson Tang's portfolio as an MCP server: profile, projects, writing, experience, and skills, plus leave_message, which signs the guestbook at https://brysontang.com/guestbook. Experience and skills unlock after signing or with an Agent-Token header.",
+  protocolVersion: '2024-11-05',
+  transport: { type: 'streamable-http', endpoint: 'https://mcp.brysontang.com' },
+  capabilities: { tools: {} },
+  authentication: { required: false },
+  documentation: 'https://github.com/brysontang/resume-mcp'
+};
+
 // CORS headers
 function corsHeaders(origin?: string): Headers {
   const headers = new Headers();
@@ -478,9 +491,20 @@ export default {
       return new Response(JSON.stringify(discovery, null, 2), { headers });
     }
 
+    if (url.pathname === '/.well-known/mcp/server-card.json') {
+      const headers = corsHeaders(origin);
+      headers.set('Content-Type', 'application/json');
+      return new Response(JSON.stringify(SERVER_CARD, null, 2), { headers });
+    }
+
     // Health check
     if (url.pathname === '/health') {
       return new Response('ok', { headers: corsHeaders(origin) });
+    }
+
+    // Streamable HTTP clients may GET for a server-to-client SSE stream; this server doesn't offer one
+    if (request.method === 'GET' && (request.headers.get('Accept') || '').includes('text/event-stream')) {
+      return new Response('Method Not Allowed', { status: 405, headers: corsHeaders(origin) });
     }
 
     // MCP endpoint (POST for JSON-RPC)
@@ -555,6 +579,12 @@ export default {
           }
         }), { status: 400, headers });
       }
+    }
+
+    // Anything else that isn't the info page is a real 404, so probes for
+    // /.well-known/* files don't mistake the info page for them
+    if (url.pathname !== '/') {
+      return new Response('Not found', { status: 404, headers: corsHeaders(origin) });
     }
 
     // Default: return info page
