@@ -9,7 +9,7 @@ compatibility_flags = ["nodejs_compat"]
 #   { pattern = "mcp.yourdomain.dev", custom_domain = true }
 # ]
 
-# KV namespace for the profile cache and guestbook rate limits
+# KV namespace for the profile cache, sessions, and rate limits
 # Create with: wrangler kv:namespace create "GUESTBOOK"
 # [[kv_namespaces]]
 # binding = "GUESTBOOK"
@@ -23,9 +23,17 @@ compatibility_flags = ["nodejs_compat"]
 # database_name = "your-guestbook-db"
 # database_id = "your-d1-database-id"
 
-# Secrets (optional): wrangler secret put IP_SALT
-# Use the same salt as your site's guestbook API so ip_hash values line up
+# Email notifications for the request_time perk. Needs Email Routing enabled
+# on your domain, with destination_address verified there first.
+# [[send_email]]
+# name = "NOTIFY_EMAIL"
+# destination_address = "you@yourdomain.dev"
+
+# Secrets (optional):
+#   wrangler secret put IP_SALT      # same salt as your site's guestbook API, so ip_hash values line up
+#   wrangler secret put CALCOM_LINK  # booking link, only ever sent to requests you approve
 
 # Environment variables (optional)
 # [vars]
 # CORS_ORIGIN = "https://yourdomain.dev"
+# NOTIFY_TO = "you@yourdomain.dev"  # must match the send_email destination_address

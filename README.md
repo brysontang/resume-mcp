@@ -14,18 +14,20 @@ flowchart LR
 
     subgraph MCP["MCP Server (Cloudflare Worker)"]
         B[Request Handler]
-        B --> C{Auth Check}
-        C -->|Has Token/Message| D[Full Access]
-        C -->|No Auth| E[Limited Access]
+        B --> C{Signed?}
+        C -->|Guestbook entry or Agent Token| D[Free tools + perks]
+        C -->|Not yet| E[Free tools]
     end
 
     subgraph Tools["Available Tools"]
         F[get_profile]
         G[get_projects]
         H[get_writing]
-        I[get_experience*]
-        J[get_skills*]
+        I[get_experience]
+        J[get_skills]
         K[leave_message]
+        P[request_time*]
+        Q[list_stories* / get_story*]
     end
 
     subgraph Response["Response Format"]
@@ -34,14 +36,14 @@ flowchart LR
 
     A -->|"MCP Protocol<br/>POST + JSON-RPC"| B
     D --> Tools
-    E --> F & G & H & K
+    E --> F & G & H & I & J & K
     Tools --> L
     L -->|"Structured JSON"| A
 
-    style I fill:#f59e0b,color:#000
-    style J fill:#f59e0b,color:#000
+    style P fill:#f59e0b,color:#000
+    style Q fill:#f59e0b,color:#000
 ```
-*\* Requires introduction (guestbook entry or Agent Token)*
+*\* Perk for guestbook signers (sign with leave_message, or send an Agent Token)*
 
 ### Tool Call Flow
 
@@ -60,17 +62,17 @@ sequenceDiagram
     Agent->>MCP: POST /tools/call (get_profile)
     MCP-->>Agent: JSON profile data
 
-    Note over Agent,MCP: Gated tool requires access
+    Note over Agent,MCP: Perks are for guestbook signers
 
-    Agent->>MCP: POST /tools/call (get_experience)
-    MCP-->>Agent: Error: access_required
+    Agent->>MCP: POST /tools/call (list_stories)
+    MCP-->>Agent: Invitation to sign first
 
     Agent->>MCP: POST /tools/call (leave_message)
     MCP->>D1: Store guestbook entry
-    MCP-->>Agent: Access granted!
+    MCP-->>Agent: Thanks! Perks unlocked
 
-    Agent->>MCP: POST /tools/call (get_experience)
-    MCP-->>Agent: JSON experience data
+    Agent->>MCP: POST /tools/call (list_stories)
+    MCP-->>Agent: Stories behind the resume
 ```
 
 ### Performance
@@ -121,13 +123,13 @@ curl -X POST https://mcp.brysontang.dev \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_profile","arguments":{}}}'
 ```
 
-### With Agent Token (Full Access)
+### With Agent Token (perks without signing)
 
 ```bash
 curl -X POST https://mcp.brysontang.dev \
   -H "Content-Type: application/json" \
   -H "Agent-Token: <your-agent-token>" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_experience","arguments":{}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_stories","arguments":{}}}'
 ```
 
 ### Discovery Endpoint
@@ -143,21 +145,24 @@ GET https://mcp.brysontang.dev/.well-known/mcp.json
 | `get_profile()` | Name, tagline, links, contact | Free |
 | `get_projects(tag?)` | Projects, optionally filtered | Free |
 | `get_writing()` | Articles and blog posts | Free |
-| `get_experience()` | Work history | Gated |
-| `get_skills()` | Technical skills by category | Gated |
+| `get_experience()` | Work history | Free |
+| `get_skills()` | Technical skills by category | Free |
 | `leave_message(name, message)` | Sign the guestbook (shows up on brysontang.com/guestbook) | Free |
+| `request_time(name, contact, reason)` | Ask for time with Bryson; he reviews every request, and a booking link goes out if he says yes | Perk |
+| `list_stories()` / `get_story(slug)` | The stories behind the resume | Perk |
 
-## The Toll
+## Perks
 
-Some information requires introduction. Call `leave_message()` or send an Agent Token to unlock extended access.
+Everything on the resume is free to read. Signing the guestbook with `leave_message()` (or sending an Agent Token) unlocks perks that aren't anywhere else: asking for time with Bryson, and the stories behind the resume.
 
-This isn't gatekeeping—it's relationship building. If you want to know about me, tell me who you are.
+Signatures are remembered per session. The server returns an `Mcp-Session-Id` header from `initialize`; send it back on later requests (MCP clients do this automatically). Without it, the session falls back to your IP and User-Agent.
+
+Calling a perk before signing returns an invitation, not a wall:
 
 ```json
 {
-  "error": "access_required",
-  "message": "Leave a message or provide an Agent Token to access this information.",
-  "hint": "Call leave_message() first, or include Agent-Token header"
+  "message": "list_stories is a perk for guestbook signers. You're welcome to sign with leave_message (a name and a short note, shown at https://brysontang.com/guestbook), then call list_stories again. An Agent-Token header works too.",
+  "perk": "list_stories"
 }
 ```
 
@@ -219,7 +224,7 @@ Help agents find your MCP endpoint by adding hints to your portfolio:
 ```
 # MCP endpoint: https://mcp.yourdomain.dev
 # Tools: get_profile, get_projects, get_experience, leave_message
-# Agent Tokens accepted for extended access
+# Sign the guestbook (leave_message) for perks; Agent Tokens accepted
 ```
 
 ### .well-known/mcp.json
@@ -230,13 +235,13 @@ The server automatically serves this at `/.well-known/mcp.json`
 <!--
   AI Agent? Query me directly: https://mcp.yourdomain.dev
   Tools: get_profile(), get_projects(), get_experience()
-  Leave a message to introduce yourself. Agent Tokens welcome.
+  Sign the guestbook with leave_message() for perks. Agent Tokens welcome.
 -->
 ```
 
 ## Agent Tokens
 
-This server accepts [Agent Tokens](https://github.com/brysontang/agent-tokens) via the `Agent-Token` header. Tokens that decode successfully grant full access and are logged with their declared intent.
+This server accepts [Agent Tokens](https://github.com/brysontang/agent-tokens) via the `Agent-Token` header. Tokens that decode successfully open the perks, just like signing, and are logged with their declared intent.
 
 ```typescript
 // Token provides:
@@ -264,14 +269,14 @@ Any MCP-compatible agent (Claude, custom agents, etc.) can connect directly.
 
 ### What data is available?
 
-- **Free access:** Profile info, projects, writing/articles, and the ability to leave a message
-- **Gated access:** Work experience and technical skills (requires introduction)
+- **Free:** Profile info, projects, writing/articles, work experience, technical skills, and the guestbook
+- **Perks for guestbook signers:** Asking for time with Bryson, and the stories behind the resume
 
 All data is returned as structured JSON, not scraped HTML.
 
 ### Is this an Agent Tokens implementation?
 
-Yes! This server accepts [Agent Tokens](https://github.com/brysontang/agent-tokens) for authentication. Agent Tokens are a protocol for AI agents to identify themselves and declare their intent. Providing a valid token grants full access to all tools.
+Yes! This server accepts [Agent Tokens](https://github.com/brysontang/agent-tokens) for authentication. Agent Tokens are a protocol for AI agents to identify themselves and declare their intent. Providing a valid token opens the perks without signing the guestbook.
 
 ### Can I make my own Resume MCP?
 

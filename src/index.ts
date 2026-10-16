@@ -7,6 +7,7 @@
 
 import bundledProfileData from '../data/profile.json';
 import { decodeAgentTokenV0, getIntentV1 } from '@agent-tokens/core';
+import { EmailMessage } from 'cloudflare:email';
 
 const PROFILE_URL = 'https://brysontang.com/data/profile.json';
 const PROFILE_KV_KEY = 'profile:latest';
@@ -14,13 +15,19 @@ const PROFILE_TTL_SECONDS = 3600; // 1 hour
 
 // Types
 interface Env {
-  /** Profile cache and guestbook rate limits */
+  /** Profile cache, sessions, and rate limits */
   GUESTBOOK?: KVNamespace;
   /** brysontang.com's guestbook, shared with the site's API worker (api.brysontang.com) */
   GUESTBOOK_DB?: D1Database;
   /** Same salt as the site's API worker, so ip_hash values line up across signing paths */
   IP_SALT?: string;
   CORS_ORIGIN?: string;
+  /** send_email binding that delivers request_time notifications to Bryson */
+  NOTIFY_EMAIL?: SendEmail;
+  /** The NOTIFY_EMAIL binding's destination_address */
+  NOTIFY_TO?: string;
+  /** Cal.com booking link (secret), only ever sent to requests Bryson approves */
+  CALCOM_LINK?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,7 +76,8 @@ async function getProfileData(env: Env): Promise<ProfileData> {
 
 interface JsonRpcRequest {
   jsonrpc: '2.0';
-  id: string | number;
+  /** Absent on notifications */
+  id?: string | number;
   method: string;
   params?: Record<string, unknown>;
 }
@@ -85,9 +93,19 @@ interface JsonRpcResponse {
   };
 }
 
+// Sessions persist in KV (key session:<id>), so a signature survives across Worker isolates
 interface SessionState {
-  hasAccess: boolean;
+  signed?: { name: string; at: string };
+  /** Set per request from the Agent-Token header; never persisted */
   agentToken?: string;
+}
+
+interface RequestContext {
+  session: SessionState;
+  sessionKey: string;
+  env: Env;
+  request: Request;
+  profileData: ProfileData;
 }
 
 // Hash IP for privacy-preserving rate limiting
@@ -132,7 +150,7 @@ const TOOLS = [
   },
   {
     name: 'get_experience',
-    description: 'Get work experience history. Requires guestbook entry or Agent Token.',
+    description: 'Get work experience history.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -143,7 +161,7 @@ const TOOLS = [
   },
   {
     name: 'get_skills',
-    description: 'Get technical skills by category. Requires guestbook entry or Agent Token.',
+    description: 'Get technical skills by category.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -154,7 +172,7 @@ const TOOLS = [
   },
   {
     name: 'leave_message',
-    description: 'Sign the guestbook at brysontang.com/guestbook. Your name and message appear there publicly. One entry per hour. Also unlocks the gated tools.',
+    description: 'Sign the guestbook at brysontang.com/guestbook. Your name and message appear there publicly. One entry per hour. Signing unlocks two perks: request_time (ask for time with Bryson) and the stories behind the resume (list_stories, get_story).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -165,11 +183,45 @@ const TOOLS = [
       },
       required: ['name', 'message']
     }
+  },
+  {
+    name: 'request_time',
+    description: "Perk for guestbook signers: ask for time with Bryson. Say what you'd like to talk about (consulting, collaboration, research, and so on). Bryson reviews every request himself, and if he says yes, a booking link goes to your contact email. He isn't taking sales pitches.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', maxLength: 50, description: 'Name of the person who wants to meet' },
+        contact: { type: 'string', maxLength: 200, description: 'Email address the booking link should go to (kept private)' },
+        reason: { type: 'string', minLength: 20, maxLength: 1000, description: "What you'd like to talk about, and why" },
+        timezone: { type: 'string', description: 'Optional, e.g. America/New_York' },
+        availability: { type: 'string', description: 'Optional, e.g. weekday afternoons next week' }
+      },
+      required: ['name', 'contact', 'reason']
+    }
+  },
+  {
+    name: 'list_stories',
+    description: 'Perk for guestbook signers: list the stories behind the resume, the parts the bullet points leave out.',
+    inputSchema: { type: 'object', properties: {}, required: [] }
+  },
+  {
+    name: 'get_story',
+    description: 'Perk for guestbook signers: read one story behind the resume, by its slug from list_stories.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        slug: { type: 'string', description: 'Story slug from list_stories' }
+      },
+      required: ['slug']
+    }
   }
 ];
 
-const FREE_TOOLS = ['get_profile', 'get_projects', 'get_writing', 'leave_message'];
-const GATED_TOOLS = ['get_experience', 'get_skills'];
+const FREE_TOOLS = ['get_profile', 'get_projects', 'get_writing', 'get_experience', 'get_skills', 'leave_message'];
+// Perks open up once a session has signed the guestbook (or sends an Agent-Token)
+const PERK_TOOLS = ['request_time', 'list_stories', 'get_story'];
+const PERKS_BLURB = 'request_time to ask for time with Bryson, and list_stories / get_story for the stories behind the resume.';
+const PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18'];
 
 // Tool implementations — all accept profileData so they use fresh data
 function getProfile(profileData: ProfileData) {
@@ -231,11 +283,11 @@ async function leaveMessage(
   params: { name?: unknown; message?: unknown; agent_id?: unknown; contact?: unknown },
   env: Env,
   ip: string
-): Promise<{ success: boolean; access_granted: boolean; message: string }> {
+): Promise<{ success: boolean; perks_unlocked: boolean; message: string }> {
   const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   const name = typeof params.name === 'string' ? params.name.trim() : '';
   const message = typeof params.message === 'string' ? params.message.trim() : '';
-  const notSigned = (reason: string) => ({ success: false, access_granted: false, message: reason });
+  const notSigned = (reason: string) => ({ success: false, perks_unlocked: false, message: reason });
 
   if (!name || !message) return notSigned('Not signed: name and message are both required.');
   if (name.length > 50) return notSigned('Not signed: name too long (max 50 characters).');
@@ -251,8 +303,8 @@ async function leaveMessage(
   if (env.GUESTBOOK && (await env.GUESTBOOK.get(rateLimitKey))) {
     return {
       success: false,
-      access_granted: true,
-      message: `You already signed in the last hour, so this one wasn't added. Your earlier entry is at ${GUESTBOOK_PAGE}, and you have access to all profile information.`
+      perks_unlocked: true,
+      message: `You already signed in the last hour, so this one wasn't added. Your earlier entry is at ${GUESTBOOK_PAGE}, and your perks are open: ${PERKS_BLURB}`
     };
   }
 
@@ -275,38 +327,244 @@ async function leaveMessage(
 
   return {
     success: true,
-    access_granted: true,
-    message: `Thanks, ${name}! Your entry is live at ${GUESTBOOK_PAGE}, and you now have access to all profile information.`
+    perks_unlocked: true,
+    message: `Thanks, ${name}! Your entry is live at ${GUESTBOOK_PAGE}. You've unlocked the perks: ${PERKS_BLURB}`
   };
 }
 
-// Session tracking (in-memory, per-request chain)
-const sessionCache = new Map<string, SessionState>();
+const SESSION_TTL_SECONDS = 7 * 24 * 3600;
 
-function getSessionKey(request: Request): string {
+// Mcp-Session-Id when the client sends one; otherwise a hash of IP + User-Agent,
+// so clients that don't send the header still keep a session
+async function sessionKeyFor(request: Request, env: Env): Promise<string> {
+  const id = request.headers.get('Mcp-Session-Id');
+  if (id) return `session:${id.slice(0, 100)}`;
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const ua = request.headers.get('User-Agent') || 'unknown';
-  return `${ip}:${ua.slice(0, 50)}`;
+  return `session:fallback:${await hashIP(`${ip}|${ua}`, env.IP_SALT)}`;
+}
+
+async function loadSession(env: Env, key: string): Promise<SessionState> {
+  if (!env.GUESTBOOK) return {};
+  try {
+    return ((await env.GUESTBOOK.get(key, 'json')) as SessionState | null) || {};
+  } catch {
+    return {};
+  }
+}
+
+// Only the signature is stored; an Agent-Token arrives with every request anyway
+async function saveSession(env: Env, key: string, session: SessionState): Promise<void> {
+  if (!env.GUESTBOOK) return;
+  await env.GUESTBOOK.put(key, JSON.stringify({ signed: session.signed }), {
+    expirationTtl: SESSION_TTL_SECONDS
+  });
+}
+
+// --- Perk: request_time ---
+
+const MEETING_RATE_SECONDS = 24 * 3600;
+const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+const NOTIFY_FROM = 'guestbook@brysontang.com';
+
+interface MeetingRequest {
+  id: number;
+  name: string;
+  contact: string;
+  reason: string;
+  timezone: string | null;
+  availability: string | null;
+  guestbookName: string | null;
+}
+
+// Base64 of the UTF-8 bytes, for MIME headers and bodies
+function base64Utf8(text: string): string {
+  let binary = '';
+  for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function mailto(to: string, subject: string, body: string): string {
+  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// Plain-text MIME built by hand. The body is base64 so long lines and non-ASCII survive.
+async function notifyBryson(env: Env, req: MeetingRequest): Promise<void> {
+  if (!env.NOTIFY_EMAIL || !env.NOTIFY_TO) {
+    console.error('request_time: NOTIFY_EMAIL binding or NOTIFY_TO is missing; request stored without an email');
+    return;
+  }
+  if (!env.CALCOM_LINK) console.error('request_time: CALCOM_LINK is not set');
+  const calLink = env.CALCOM_LINK || '<your Cal.com link: set the CALCOM_LINK secret>';
+  const replySubject = 'Re: time with Bryson Tang';
+
+  const approve = mailto(
+    req.contact,
+    replySubject,
+    `Hi ${req.name},\n\nThanks for reaching out. I'd be glad to talk. Grab a time that works for you here:\n${calLink}\n\nBryson`
+  );
+  const decline = mailto(
+    req.contact,
+    replySubject,
+    `Hi ${req.name},\n\nThanks for reaching out, and for signing my guestbook. I can't take this one on right now, but I appreciate you thinking of me.\n\nBryson`
+  );
+
+  const body = [
+    `New request for time, via mcp.brysontang.com (request #${req.id}).`,
+    '',
+    `From: ${req.name} <${req.contact}>`,
+    `Guestbook name: ${req.guestbookName || '(none)'}`,
+    `Timezone: ${req.timezone || '(not given)'}`,
+    `Availability: ${req.availability || '(not given)'}`,
+    '',
+    'Reason:',
+    req.reason,
+    '',
+    'Approve (opens an email to them with your Cal.com link):',
+    approve,
+    '',
+    'Decline (opens a short, polite note):',
+    decline,
+    ''
+  ].join('\n');
+
+  const raw = [
+    `From: brysontang.com guestbook <${NOTIFY_FROM}>`,
+    `To: ${env.NOTIFY_TO}`,
+    `Reply-To: ${req.contact}`,
+    `Subject: =?UTF-8?B?${base64Utf8(`Time request from ${req.name}`.replace(/[\r\n]+/g, ' '))}?=`,
+    `Message-ID: <${crypto.randomUUID()}@brysontang.com>`,
+    `Date: ${new Date().toUTCString()}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=utf-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    base64Utf8(body).replace(/.{76}/g, '$&\r\n'),
+    ''
+  ].join('\r\n');
+
+  await env.NOTIFY_EMAIL.send(new EmailMessage(NOTIFY_FROM, env.NOTIFY_TO, raw));
+}
+
+async function requestTime(
+  params: Record<string, unknown>,
+  ctx: RequestContext
+): Promise<{ success: boolean; message: string; request_id?: number }> {
+  const { env, request, session, sessionKey } = ctx;
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  const name = str(params.name);
+  const contact = str(params.contact);
+  const reason = str(params.reason);
+  const timezone = str(params.timezone).slice(0, 100) || null;
+  const availability = str(params.availability).slice(0, 500) || null;
+  const notSent = (message: string) => ({ success: false, message });
+
+  if (!name || name.length > 50) return notSent('Not sent: a name is required (max 50 characters).');
+  if (contact.length > 200 || !EMAIL_PATTERN.test(contact)) {
+    return notSent('Not sent: contact must be an email address, since that is where the booking link would go.');
+  }
+  if (reason.length < 20) {
+    return notSent("Not sent: say a little more about what you'd like to talk about (at least 20 characters).");
+  }
+  if (reason.length > 1000) return notSent('Not sent: reason too long (max 1000 characters).');
+
+  if (!env.GUESTBOOK_DB) {
+    console.error('request_time: GUESTBOOK_DB binding is missing');
+    return notSent('Not sent: requests are unavailable right now. Please try again later.');
+  }
+
+  // One request per session and per IP each day
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const ipHash = await hashIP(ip, env.IP_SALT);
+  const rateLimitKeys = [`meeting_rate_${sessionKey}`, `meeting_rate_ip_${ipHash}`];
+  if (env.GUESTBOOK) {
+    for (const key of rateLimitKeys) {
+      if (await env.GUESTBOOK.get(key)) {
+        return notSent("You've already sent a request in the last day. If Bryson says yes, you'll hear back at the address you gave.");
+      }
+    }
+  }
+
+  const guestbookName = session.signed?.name || null;
+  const { meta } = await env.GUESTBOOK_DB.prepare(
+    'INSERT INTO meeting_requests (created_at, name, contact, reason, timezone, availability, guestbook_name, ip_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  )
+    .bind(new Date().toISOString(), name, contact, reason, timezone, availability, guestbookName, ipHash)
+    .run();
+  const id = Number(meta.last_row_id);
+
+  if (env.GUESTBOOK) {
+    await Promise.all(
+      rateLimitKeys.map((key) => env.GUESTBOOK!.put(key, '1', { expirationTtl: MEETING_RATE_SECONDS }))
+    );
+  }
+
+  // The request is stored either way; a failed email only costs the heads-up
+  try {
+    await notifyBryson(env, {
+      id,
+      name,
+      contact,
+      reason,
+      timezone,
+      availability,
+      guestbookName: guestbookName || (session.agentToken ? '(sent an Agent-Token)' : null)
+    });
+  } catch (err) {
+    console.error('request_time: notification email failed:', err instanceof Error ? err.message : err);
+  }
+
+  return {
+    success: true,
+    request_id: id,
+    message: `Thanks, ${name}. Bryson reviews every request personally. If he says yes, an email with a booking link goes to ${contact}.`
+  };
+}
+
+// --- Perk: stories behind the resume ---
+
+async function listStories(env: Env) {
+  if (!env.GUESTBOOK_DB) {
+    return { stories: [], message: 'Stories are unavailable right now. Please try again later.' };
+  }
+  const { results } = await env.GUESTBOOK_DB.prepare(
+    'SELECT slug, title, summary, updated_at FROM stories WHERE published = 1 ORDER BY updated_at DESC'
+  ).all();
+  if (!results.length) {
+    return {
+      stories: [],
+      message: 'Stories are coming soon. Bryson is writing up the stories behind the resume, the parts the bullet points leave out. Check back later.'
+    };
+  }
+  return { stories: results, hint: 'Read one with get_story(slug).' };
+}
+
+async function getStory(env: Env, slug: string) {
+  if (!env.GUESTBOOK_DB) return null;
+  return await env.GUESTBOOK_DB.prepare(
+    'SELECT slug, title, summary, body_md, updated_at FROM stories WHERE slug = ? AND published = 1'
+  )
+    .bind(slug)
+    .first();
 }
 
 // Handle MCP tool calls
 async function handleToolCall(
   tool: string,
   params: Record<string, unknown>,
-  session: SessionState,
-  env: Env,
-  request: Request,
-  profileData: ProfileData
+  ctx: RequestContext
 ): Promise<{ result?: unknown; error?: { code: number; message: string; data?: unknown } }> {
-  // Check access for gated tools
-  if (GATED_TOOLS.includes(tool) && !session.hasAccess) {
+  const { session, sessionKey, env, request, profileData } = ctx;
+
+  // Perks open up for sessions that signed the guestbook (or sent a valid Agent-Token)
+  if (PERK_TOOLS.includes(tool) && !session.signed && !session.agentToken) {
     return {
       error: {
         code: -32001,
-        message: 'Access required',
+        message: 'Perk for guestbook signers',
         data: {
-          hint: 'Call leave_message() first to introduce yourself, or include an Agent-Token header.',
-          gated_tool: tool,
+          message: `${tool} is a perk for guestbook signers. You're welcome to sign with leave_message (a name and a short note, shown at ${GUESTBOOK_PAGE}), then call ${tool} again. An Agent-Token header works too.`,
+          perk: tool,
           free_tools: FREE_TOOLS
         }
       }
@@ -333,9 +591,34 @@ async function handleToolCall(
     case 'leave_message': {
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const result = await leaveMessage(params, env, ip);
-      // Grant access for this session once they've signed (now or earlier this hour)
-      if (result.access_granted) session.hasAccess = true;
+      // Signed now or earlier this hour: this session's perks are open
+      if (result.perks_unlocked) {
+        const name = typeof params.name === 'string' ? params.name.trim().slice(0, 50) : '';
+        session.signed = { name, at: new Date().toISOString() };
+        await saveSession(env, sessionKey, session);
+      }
       return { result };
+    }
+
+    case 'request_time':
+      return { result: await requestTime(params, ctx) };
+
+    case 'list_stories':
+      return { result: await listStories(env) };
+
+    case 'get_story': {
+      const slug = typeof params.slug === 'string' ? params.slug.trim() : '';
+      const story = slug ? await getStory(env, slug) : null;
+      if (!story) {
+        return {
+          error: {
+            code: -32002,
+            message: 'Story not found',
+            data: { message: `There's no story called "${slug}" yet. list_stories shows what's available.` }
+          }
+        };
+      }
+      return { result: story };
     }
 
     default:
@@ -348,23 +631,27 @@ async function handleToolCall(
   }
 }
 
+// JSON-RPC notifications carry no id and get no response
+function isNotification(rpc: JsonRpcRequest): boolean {
+  return rpc.id === undefined;
+}
+
 // Handle MCP JSON-RPC methods
-async function handleJsonRpc(
-  rpc: JsonRpcRequest,
-  session: SessionState,
-  env: Env,
-  request: Request,
-  profileData: ProfileData
-): Promise<JsonRpcResponse> {
-  const { id, method, params } = rpc;
+async function handleJsonRpc(rpc: JsonRpcRequest, ctx: RequestContext): Promise<JsonRpcResponse> {
+  const { method, params } = rpc;
+  const id = rpc.id ?? null;
 
   switch (method) {
-    case 'initialize':
+    case 'initialize': {
+      // Echo the client's protocol version when it's one this server speaks
+      const requested = (params as { protocolVersion?: string } | undefined)?.protocolVersion;
+      const protocolVersion =
+        requested && PROTOCOL_VERSIONS.includes(requested) ? requested : '2024-11-05';
       return {
         jsonrpc: '2.0',
         id,
         result: {
-          protocolVersion: '2024-11-05',
+          protocolVersion,
           capabilities: {
             tools: {}
           },
@@ -374,9 +661,7 @@ async function handleJsonRpc(
           }
         }
       };
-
-    case 'notifications/initialized':
-      return { jsonrpc: '2.0', id, result: {} };
+    }
 
     case 'tools/list':
       return {
@@ -387,14 +672,7 @@ async function handleJsonRpc(
 
     case 'tools/call': {
       const toolParams = params as { name: string; arguments?: Record<string, unknown> };
-      const toolResult = await handleToolCall(
-        toolParams.name,
-        toolParams.arguments || {},
-        session,
-        env,
-        request,
-        profileData
-      );
+      const toolResult = await handleToolCall(toolParams.name, toolParams.arguments || {}, ctx);
 
       if (toolResult.error) {
         return {
@@ -442,7 +720,7 @@ async function handleJsonRpc(
 const SERVER_CARD = {
   serverInfo: { name: 'resume-mcp', title: 'Bryson Tang', version: '1.0.0' },
   description:
-    "Bryson Tang's portfolio as an MCP server: profile, projects, writing, experience, and skills, plus leave_message, which signs the guestbook at https://brysontang.com/guestbook. Experience and skills unlock after signing or with an Agent-Token header.",
+    "Bryson Tang's portfolio as an MCP server: profile, projects, writing, experience, and skills, all free to read. leave_message signs the guestbook at https://brysontang.com/guestbook and unlocks two perks: request_time to ask for time with Bryson, and list_stories / get_story for the stories behind the resume.",
   protocolVersion: '2024-11-05',
   transport: { type: 'streamable-http', endpoint: 'https://mcp.brysontang.com' },
   capabilities: { tools: {} },
@@ -455,7 +733,8 @@ function corsHeaders(origin?: string): Headers {
   const headers = new Headers();
   headers.set('Access-Control-Allow-Origin', origin || '*');
   headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  headers.set('Access-Control-Allow-Headers', 'Content-Type, Agent-Token');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type, Agent-Token, Mcp-Session-Id, MCP-Protocol-Version');
+  headers.set('Access-Control-Expose-Headers', 'Mcp-Session-Id');
   headers.set('Access-Control-Max-Age', '86400');
   return headers;
 }
@@ -480,8 +759,8 @@ export default {
         tools: TOOLS.map(t => t.name),
         access: {
           free: FREE_TOOLS,
-          gated: GATED_TOOLS,
-          toll: 'leave_message() or Agent-Token header'
+          perks: PERK_TOOLS,
+          unlock: 'leave_message() (signs the guestbook) or an Agent-Token header'
         },
         agent_tokens: 'https://github.com/brysontang/agent-tokens'
       };
@@ -513,25 +792,22 @@ export default {
         // Load profile data (KV cache → fetch → bundled fallback)
         const profileData = await getProfileData(env);
 
-        // Check for Agent Token
+        const body = await request.json() as JsonRpcRequest | JsonRpcRequest[];
+        const rpcs = Array.isArray(body) ? body : [body];
+
+        // initialize starts a new session (returned in Mcp-Session-Id); everything else continues one
+        const newSessionId = rpcs.some(rpc => rpc.method === 'initialize') ? crypto.randomUUID() : null;
+        const sessionKey = newSessionId ? `session:${newSessionId}` : await sessionKeyFor(request, env);
+        const session = await loadSession(env, sessionKey);
+
+        // A valid Agent Token counts as signed for this request
         const agentToken = request.headers.get('Agent-Token');
-        const sessionKey = getSessionKey(request);
-
-        // Get or create session
-        let session = sessionCache.get(sessionKey);
-        if (!session) {
-          session = { hasAccess: false };
-          sessionCache.set(sessionKey, session);
-        }
-
-        // Agent token grants access
         if (agentToken) {
           try {
             const decoded = decodeAgentTokenV0(agentToken);
             const intent = getIntentV1(decoded);
 
             if (intent) {
-              session.hasAccess = true;
               session.agentToken = agentToken;
 
               // Log agent visit with properly extracted intent
@@ -543,28 +819,29 @@ export default {
               }));
             }
           } catch (e) {
-            // Invalid token - log but don't grant access
+            // Invalid token - log but don't count it
             console.log('Invalid agent token:', e instanceof Error ? e.message : 'Unknown error');
           }
         }
 
-        const body = await request.json() as JsonRpcRequest | JsonRpcRequest[];
-
-        // Handle batch requests
-        if (Array.isArray(body)) {
-          const responses = await Promise.all(
-            body.map(rpc => handleJsonRpc(rpc, session, env, request, profileData))
-          );
-          const headers = corsHeaders(origin);
-          headers.set('Content-Type', 'application/json');
-          return new Response(JSON.stringify(responses), { headers });
+        // In order, so leave_message then request_time in one batch works
+        const ctx: RequestContext = { session, sessionKey, env, request, profileData };
+        const responses: JsonRpcResponse[] = [];
+        for (const rpc of rpcs) {
+          if (isNotification(rpc)) continue;
+          responses.push(await handleJsonRpc(rpc, ctx));
         }
 
-        // Single request
-        const response = await handleJsonRpc(body, session, env, request, profileData);
         const headers = corsHeaders(origin);
+        if (newSessionId) headers.set('Mcp-Session-Id', newSessionId);
+
+        // Only notifications: 202 Accepted with no body (Streamable HTTP)
+        if (!responses.length) {
+          return new Response(null, { status: 202, headers });
+        }
+
         headers.set('Content-Type', 'application/json');
-        return new Response(JSON.stringify(response), { headers });
+        return new Response(JSON.stringify(Array.isArray(body) ? responses : responses[0]), { headers });
 
       } catch (err) {
         const headers = corsHeaders(origin);
@@ -601,7 +878,7 @@ export default {
     pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
     .tools { display: grid; gap: 10px; margin: 20px 0; }
     .tool { background: #f9f9f9; padding: 10px; border-radius: 5px; }
-    .gated { border-left: 3px solid #f59e0b; }
+    .perk { border-left: 3px solid #f59e0b; }
   </style>
 </head>
 <body>
@@ -614,19 +891,19 @@ export default {
   <h3>Available Tools</h3>
   <div class="tools">
     ${TOOLS.map(t => `
-      <div class="tool ${GATED_TOOLS.includes(t.name) ? 'gated' : ''}">
+      <div class="tool ${PERK_TOOLS.includes(t.name) ? 'perk' : ''}">
         <strong>${t.name}</strong>
-        ${GATED_TOOLS.includes(t.name) ? '<span style="color:#f59e0b"> (requires access)</span>' : ''}
+        ${PERK_TOOLS.includes(t.name) ? '<span style="color:#f59e0b"> (perk for guestbook signers)</span>' : ''}
         <br><small>${t.description}</small>
       </div>
     `).join('')}
   </div>
 
-  <h3>Access</h3>
-  <p>Some tools require introduction. Either:</p>
+  <h3>Perks</h3>
+  <p>Everything else here is free to read. Sign the <a href="${GUESTBOOK_PAGE}">guestbook</a> with <code>leave_message()</code>, or send an <code>Agent-Token</code> header, and two perks open up:</p>
   <ul>
-    <li>Call <code>leave_message()</code> to introduce yourself (it signs the <a href="${GUESTBOOK_PAGE}">guestbook</a>)</li>
-    <li>Include an <code>Agent-Token</code> header</li>
+    <li><code>request_time()</code> to ask for time with Bryson (he reviews every request himself)</li>
+    <li><code>list_stories()</code> and <code>get_story()</code> for the stories behind the resume</li>
   </ul>
 
   <p><a href="/.well-known/mcp.json">Discovery JSON</a></p>
