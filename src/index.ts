@@ -299,11 +299,25 @@ function isDefaultText(value: string, defaults: Set<string>): boolean {
   return defaults.has(value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim());
 }
 
+// Who signed, as far as the request says. Stored with the entry, never shown publicly.
+// Same fields as requestDetails() in the site's guestbook API.
+function requestDetails(request: Request) {
+  const cf = (request.cf || {}) as { asn?: unknown; asOrganization?: unknown; country?: unknown };
+  const clip = (value: unknown, max: number) => (typeof value === 'string' && value ? value.slice(0, max) : null);
+  return {
+    userAgent: clip(request.headers.get('User-Agent'), 500),
+    asn: typeof cf.asn === 'number' ? cf.asn : null,
+    asOrg: clip(cf.asOrganization, 200),
+    country: clip(cf.country, 8),
+    agentToken: clip(request.headers.get('Agent-Token'), 4096)
+  };
+}
+
 // Same rules as the site's other signing paths (api.brysontang.com/api/guestbook)
 async function leaveMessage(
   params: { name?: unknown; message?: unknown; agent_id?: unknown; contact?: unknown },
   env: Env,
-  ip: string
+  request: Request
 ): Promise<{ success: boolean; perks_unlocked: boolean; message: string }> {
   const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   const name = typeof params.name === 'string' ? params.name.trim() : '';
@@ -322,6 +336,7 @@ async function leaveMessage(
     return notSigned('Not signed: the guestbook is unavailable right now. Please try again later.');
   }
 
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const ipHash = await hashIP(ip, env.IP_SALT);
   const rateLimitKey = `guestbook_rate_${ipHash}`;
   if (env.GUESTBOOK && (await env.GUESTBOOK.get(rateLimitKey))) {
@@ -332,8 +347,10 @@ async function leaveMessage(
     };
   }
 
+  const details = requestDetails(request);
   await env.GUESTBOOK_DB.prepare(
-    'INSERT INTO guestbook (name, message, ip_hash, created_at, agent_id, contact) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO guestbook (name, message, ip_hash, created_at, agent_id, contact, via, user_agent, asn, as_org, country, agent_token) ' +
+      "VALUES (?, ?, ?, ?, ?, ?, 'mcp', ?, ?, ?, ?, ?)"
   )
     .bind(
       name,
@@ -341,7 +358,12 @@ async function leaveMessage(
       ipHash,
       new Date().toISOString(),
       text(params.agent_id, 100) || null,
-      text(params.contact, 200) || null
+      text(params.contact, 200) || null,
+      details.userAgent,
+      details.asn,
+      details.asOrg,
+      details.country,
+      details.agentToken
     )
     .run();
 
@@ -660,8 +682,7 @@ async function handleToolCall(
       return { result: getSkills(profileData, params as { category?: string }) };
 
     case 'leave_message': {
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-      const result = await leaveMessage(params, env, ip);
+      const result = await leaveMessage(params, env, request);
       // Signed now or earlier this hour: this session's perks are open
       if (result.perks_unlocked) {
         const name = typeof params.name === 'string' ? params.name.trim().slice(0, 50) : '';
