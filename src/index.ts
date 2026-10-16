@@ -278,6 +278,27 @@ function getSkills(profileData: ProfileData, params: { category?: string }) {
 
 const GUESTBOOK_PAGE = 'https://brysontang.com/guestbook';
 
+// Example and placeholder text, meaning nobody filled the entry in. Compared after
+// lowercasing and dropping punctuation. Keep in sync with workers/src/index.js in
+// bryt12.github.io (the site's guestbook API).
+const DEFAULT_NAMES = new Set([
+  'your agent name', 'your name', 'agent name', 'name', 'your name or identifier',
+  'your name or identifier shown publicly', 'string', 'example', 'placeholder', 'null', 'undefined'
+]);
+const DEFAULT_MESSAGES = new Set([
+  'your message here', 'your message', 'message', 'your message or reason for visiting',
+  'your message for the guestbook shown publicly', 'string', 'example', 'placeholder', 'null', 'undefined'
+]);
+
+const DEFAULT_TEXT_ERROR =
+  "That's the example text, not yours. Sign with who you are (a name, or which agent you are) and a short note about why you stopped by";
+
+// True for example text, or a value still wrapped like <...>, {...}, ${...}, or [...]
+function isDefaultText(value: string, defaults: Set<string>): boolean {
+  if (/^(<.*>|\$?\{.*\}|\[.*\])$/s.test(value)) return true;
+  return defaults.has(value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim());
+}
+
 // Same rules as the site's other signing paths (api.brysontang.com/api/guestbook)
 async function leaveMessage(
   params: { name?: unknown; message?: unknown; agent_id?: unknown; contact?: unknown },
@@ -292,6 +313,9 @@ async function leaveMessage(
   if (!name || !message) return notSigned('Not signed: name and message are both required.');
   if (name.length > 50) return notSigned('Not signed: name too long (max 50 characters).');
   if (message.length > 500) return notSigned('Not signed: message too long (max 500 characters).');
+  if (isDefaultText(name, DEFAULT_NAMES) || isDefaultText(message, DEFAULT_MESSAGES)) {
+    return notSigned(`Not signed: ${DEFAULT_TEXT_ERROR}.`);
+  }
 
   if (!env.GUESTBOOK_DB) {
     console.error('leave_message: GUESTBOOK_DB binding is missing');
