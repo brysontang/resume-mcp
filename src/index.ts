@@ -412,7 +412,32 @@ function mailto(to: string, subject: string, body: string): string {
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-// Plain-text MIME built by hand. The body is base64 so long lines and non-ASCII survive.
+// Opens a Gmail draft in the browser, whatever the computer's default mail app is
+function gmailCompose(to: string, subject: string, body: string): string {
+  const q = (v: string) => encodeURIComponent(v);
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${q(to)}&su=${q(subject)}&body=${q(body)}`;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// One MIME part, base64 so long lines and non-ASCII survive
+function mimePart(contentType: string, text: string): string {
+  return [
+    `Content-Type: ${contentType}; charset=utf-8`,
+    'Content-Transfer-Encoding: base64',
+    '',
+    base64Utf8(text).replace(/.{76}/g, '$&\r\n')
+  ].join('\r\n');
+}
+
+// MIME built by hand: a plain-text part plus an HTML part with clickable buttons
 async function notifyBryson(env: Env, req: MeetingRequest): Promise<void> {
   if (!env.NOTIFY_EMAIL || !env.NOTIFY_TO) {
     console.error('request_time: NOTIFY_EMAIL binding or NOTIFY_TO is missing; request stored without an email');
@@ -422,16 +447,12 @@ async function notifyBryson(env: Env, req: MeetingRequest): Promise<void> {
   const calLink = env.CALCOM_LINK || '<your Cal.com link: set the CALCOM_LINK secret>';
   const replySubject = 'Re: time with Bryson Tang';
 
-  const approve = mailto(
-    req.contact,
-    replySubject,
-    `Hi ${req.name},\n\nThanks for reaching out. I'd be glad to talk. Grab a time that works for you here:\n${calLink}\n\nBryson`
-  );
-  const decline = mailto(
-    req.contact,
-    replySubject,
-    `Hi ${req.name},\n\nThanks for reaching out, and for signing my guestbook. I can't take this one on right now, but I appreciate you thinking of me.\n\nBryson`
-  );
+  const approveBody = `Hi ${req.name},\n\nThanks for reaching out. I'd be glad to talk. Grab a time that works for you here:\n${calLink}\n\nBryson`;
+  const declineBody = `Hi ${req.name},\n\nThanks for reaching out, and for signing my guestbook. I can't take this one on right now, but I appreciate you thinking of me.\n\nBryson`;
+  const approve = mailto(req.contact, replySubject, approveBody);
+  const decline = mailto(req.contact, replySubject, declineBody);
+  const approveGmail = gmailCompose(req.contact, replySubject, approveBody);
+  const declineGmail = gmailCompose(req.contact, replySubject, declineBody);
 
   const body = [
     `New request for time, via mcp.brysontang.com (request #${req.id}).`,
@@ -444,13 +465,36 @@ async function notifyBryson(env: Env, req: MeetingRequest): Promise<void> {
     'Reason:',
     req.reason,
     '',
-    'Approve (opens an email to them with your Cal.com link):',
-    approve,
+    'Approve (opens a Gmail draft to them with your Cal.com link):',
+    approveGmail,
+    `Or in your mail app: ${approve}`,
     '',
     'Decline (opens a short, polite note):',
-    decline,
+    declineGmail,
+    `Or in your mail app: ${decline}`,
     ''
   ].join('\n');
+
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:2px 12px 2px 0;color:#666">${label}</td><td>${escapeHtml(value)}</td></tr>`;
+  const button = (href: string, label: string, color: string) =>
+    `<a href="${escapeHtml(href)}" style="display:inline-block;padding:10px 18px;margin-right:8px;border-radius:6px;background:${color};color:#fff;text-decoration:none;font-weight:600">${label}</a>`;
+  const html = `<!doctype html>
+<html><body style="font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.5;color:#111;max-width:600px">
+<p>New request for time, via mcp.brysontang.com (request #${req.id}).</p>
+<table style="border-collapse:collapse;font-size:14px">
+${row('From', `${req.name} <${req.contact}>`)}
+${row('Guestbook name', req.guestbookName || '(none)')}
+${row('Timezone', req.timezone || '(not given)')}
+${row('Availability', req.availability || '(not given)')}
+</table>
+<p style="margin-top:16px"><strong>Reason</strong></p>
+<blockquote style="margin:0;padding:8px 12px;border-left:3px solid #ccc;white-space:pre-wrap">${escapeHtml(req.reason)}</blockquote>
+<p style="margin-top:20px">${button(approveGmail, 'Approve', '#16a34a')}${button(declineGmail, 'Decline', '#6b7280')}</p>
+<p style="font-size:12px;color:#666">Approve opens a Gmail draft to them with your Cal.com link; Decline opens a short, polite note. Not using Gmail in the browser? <a href="${escapeHtml(approve)}">Approve</a> or <a href="${escapeHtml(decline)}">decline</a> in your mail app.</p>
+</body></html>`;
+
+  const boundary = `----=_guestbook_${crypto.randomUUID()}`;
 
   const raw = [
     `From: brysontang.com guestbook <${NOTIFY_FROM}>`,
@@ -460,10 +504,13 @@ async function notifyBryson(env: Env, req: MeetingRequest): Promise<void> {
     `Message-ID: <${crypto.randomUUID()}@brysontang.com>`,
     `Date: ${new Date().toUTCString()}`,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=utf-8',
-    'Content-Transfer-Encoding: base64',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
     '',
-    base64Utf8(body).replace(/.{76}/g, '$&\r\n'),
+    `--${boundary}`,
+    mimePart('text/plain', body),
+    `--${boundary}`,
+    mimePart('text/html', html),
+    `--${boundary}--`,
     ''
   ].join('\r\n');
 
