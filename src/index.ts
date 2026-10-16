@@ -19,7 +19,7 @@ interface Env {
   GUESTBOOK?: KVNamespace;
   /** brysontang.com's guestbook, shared with the site's API worker (api.brysontang.com) */
   GUESTBOOK_DB?: D1Database;
-  /** Same salt as the site's API worker, so ip_hash values line up across signing paths */
+  /** Secret salt for IP hashes. Without it, hashIP falls back to a salt that's public in this repo */
   IP_SALT?: string;
   CORS_ORIGIN?: string;
   /** send_email binding that delivers request_time notifications to Bryson */

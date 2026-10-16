@@ -30,7 +30,7 @@ compatibility_flags = ["nodejs_compat"]
 # destination_address = "you@yourdomain.dev"
 
 # Secrets (optional):
-#   wrangler secret put IP_SALT      # same salt as your site's guestbook API, so ip_hash values line up
+#   wrangler secret put IP_SALT      # random secret for IP hashes; without it a salt that's public in this repo is used
 #   wrangler secret put CALCOM_LINK  # booking link, only ever sent to requests you approve
 
 # Environment variables (optional)
